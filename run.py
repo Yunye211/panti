@@ -1,5 +1,9 @@
 import os
 
+from dotenv import load_dotenv
+
+load_dotenv()  # 读取项目根目录的 .env（若存在）
+
 from app import create_app
 
 app = create_app()
