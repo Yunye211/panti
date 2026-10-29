@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% from "macros.html" import difficulty_badge, tag_list %}
+{% block title %}题库{% endblock %}
+
+{% block content %}
+<section class="card">
+  <div class="card-head">
+    <h2>题库浏览</h2>
+    <a class="btn btn-primary btn-sm" href="{{ url_for('problems.practice_setup') }}">专项练习</a>
+  </div>
+
+  <form class="filter-bar" method="get">
+    <input type="text" name="q" value="{{ keyword }}" placeholder="搜索题目标题">
+    <select name="tag">
+      <option value="">全部知识点</option>
+      {% for tag in tags %}
+        <option value="{{ tag.id }}" {% if tag_id == tag.id %}selected{% endif %}>{{ tag.name }}</option>
+      {% endfor %}
+    </select>
+    <select name="difficulty">
+      <option value="">全部难度</option>
+      {% for key, label in difficulties.items() %}
+        <option value="{{ key }}" {% if difficulty == key %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn btn-outline btn-sm" type="submit">筛选</button>
+  </form>
+
+  <table class="table">
+    <thead><tr><th>#</th><th>题目</th><th>知识点</th><th>难度</th><th>状态</th><th></th></tr></thead>
+    <tbody>
+    {% for p in problems %}
+      <tr>
+        <td class="muted">{{ p.id }}</td>
+        <td><a href="{{ url_for('problems.detail', problem_id=p.id) }}">{{ p.title }}</a></td>
+        <td>{{ tag_list(p) }}</td>
+        <td>{{ difficulty_badge(p) }}</td>
+        <td>{% if p.id in solved_ids %}<span class="badge badge-success">已通过</span>{% else %}<span class="muted">未通过</span>{% endif %}</td>
+        <td><a class="btn btn-sm btn-outline" href="{{ url_for('problems.detail', problem_id=p.id) }}">去练习</a></td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6" class="muted">没有找到匹配的题目。</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  {% if pagination.pages > 1 %}
+  <div class="pager">
+    {% if pagination.has_prev %}<a class="btn btn-sm btn-outline" href="{{ url_for('problems.index', page=pagination.prev_num, q=keyword, tag=tag_id, difficulty=difficulty) }}">上一页</a>{% endif %}
+    <span class="muted">第 {{ pagination.page }} / {{ pagination.pages }} 页</span>
+    {% if pagination.has_next %}<a class="btn btn-sm btn-outline" href="{{ url_for('problems.index', page=pagination.next_num, q=keyword, tag=tag_id, difficulty=difficulty) }}">下一页</a>{% endif %}
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

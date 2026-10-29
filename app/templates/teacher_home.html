@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% from "macros.html" import status_badge %}
+{% block title %}教师首页{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <div>
+    <h1>教师工作台</h1>
+    <p class="muted">管理题库、布置作业、查看学生源代码与判题结果，并统计班级学情。</p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="{{ url_for('teacher.problem_new') }}">录入新题目</a>
+      <a class="btn btn-outline" href="{{ url_for('teacher.homeworks') }}">发布作业</a>
+    </div>
+  </div>
+  <div class="stat-row">
+    <div class="stat-card"><div class="stat-num">{{ my_problems }}</div><div class="stat-label">我录入的题目</div></div>
+    <div class="stat-card"><div class="stat-num">{{ classes|length }}</div><div class="stat-label">班级数</div></div>
+    <div class="stat-card"><div class="stat-num">{{ student_total }}</div><div class="stat-label">学生数</div></div>
+    <div class="stat-card"><div class="stat-num">{{ homework_total }}</div><div class="stat-label">作业数</div></div>
+  </div>
+</section>
+
+<section class="grid-2">
+  <div class="card">
+    <div class="card-head"><h2>我的班级</h2><a class="muted small" href="{{ url_for('teacher.classes') }}">管理班级</a></div>
+    {% if classes %}
+    <table class="table">
+      <thead><tr><th>班级</th><th>班级码</th><th>学生</th><th></th></tr></thead>
+      <tbody>
+      {% for room in classes %}
+        <tr>
+          <td>{{ room.name }}</td>
+          <td><code>{{ room.join_code }}</code></td>
+          <td>{{ room.students|length }} 人</td>
+          <td><a class="btn btn-sm btn-outline" href="{{ url_for('teacher.class_detail', room_id=room.id) }}">详情</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p class="muted">还没有班级，先在“班级”页面创建一个。</p>{% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>最近学生提交</h2><a class="muted small" href="{{ url_for('teacher.submissions') }}">查看全部</a></div>
+    {% if recent %}
+    <ul class="list">
+      {% for s in recent %}
+      <li>
+        <span class="strong">{{ s.author.name }}</span>
+        <a href="{{ url_for('problems.submission_detail', submission_id=s.id) }}">{{ s.problem.title }}</a>
+        {{ status_badge(s.status, s.status_label) }}
+        <span class="muted small">{{ s.created_at.strftime('%m-%d %H:%M') }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="muted">暂无学生提交。</p>{% endif %}
+  </div>
+</section>
+{% endblock %}

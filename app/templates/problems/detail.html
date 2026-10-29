@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% from "macros.html" import difficulty_badge, tag_list, code_editor, result_panel, status_badge %}
+{% block title %}{{ problem.title }}{% endblock %}
+
+{% block content %}
+{% if homework %}
+<div class="crumb">
+  <a href="{{ url_for('homework.index') }}">我的作业</a> /
+  <a href="{{ url_for('homework.detail', homework_id=homework.id) }}">{{ homework.title }}</a> /
+  <span>{{ problem.title }}</span>
+  <span class="muted small">截止：{{ homework.due_at.strftime('%Y-%m-%d %H:%M') }}</span>
+</div>
+{% else %}
+<div class="crumb"><a href="{{ url_for('problems.index') }}">题库</a> / <span>{{ problem.title }}</span></div>
+{% endif %}
+
+<section class="workbench">
+  <div class="problem-pane card">
+    <div class="card-head">
+      <h2>{{ problem.id }}. {{ problem.title }}</h2>
+      <div>{{ difficulty_badge(problem) }}</div>
+    </div>
+    <div class="chips">{{ tag_list(problem) }}</div>
+    <div class="markdown">{{ problem.description|e|replace('\n', '<br>')|safe }}</div>
+
+    <h3 class="sub-title">样例</h3>
+    {% for tc in samples %}
+    <div class="sample">
+      <div><strong>输入 {{ loop.index }}</strong><pre>{{ tc.input_data }}</pre></div>
+      <div><strong>输出 {{ loop.index }}</strong><pre>{{ tc.expected_output }}</pre></div>
+    </div>
+    {% else %}
+    <p class="muted">该题暂无公开样例。</p>
+    {% endfor %}
+
+    {% if history %}
+    <h3 class="sub-title">本题最近提交</h3>
+    <ul class="list">
+      {% for s in history %}
+      <li><a href="{{ url_for('problems.submission_detail', submission_id=s.id) }}">{{ s.created_at.strftime('%m-%d %H:%M') }}</a> {{ status_badge(s.status, s.status_label) }} <span class="muted small">{{ s.passed_count }}/{{ s.total_count }} 测试点</span></li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+
+  <div class="editor-pane">
+    {{ code_editor(code) }}
+    <div class="editor-actions">
+      <button class="btn btn-primary" id="btn-submit"
+              data-problem="{{ problem.id }}"
+              data-homework="{{ homework.id if homework else '' }}"
+              data-source="{{ 'homework' if homework else 'free' }}"
+              data-save="{{ '1' if tab != 'preview' else '0' }}">提交判题</button>
+      <button class="btn btn-outline" id="btn-toggle-run">自定义输入运行</button>
+      {% if tab == 'practice' or (homework) %}
+      <span class="muted small">提交后系统自动判题并记录</span>
+      {% endif %}
+    </div>
+
+    <div class="run-box hidden" id="run-box">
+      <label>stdin 输入：</label>
+      <textarea id="custom-input" rows="3" placeholder="程序需要的输入内容"></textarea>
+      <button class="btn btn-outline btn-sm" id="btn-run">运行</button>
+      <pre class="output" id="run-output"></pre>
+    </div>
+
+    {{ result_panel() }}
+  </div>
+</section>
+{% endblock %}

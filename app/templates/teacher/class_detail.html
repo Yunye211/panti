@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}班级详情{% endblock %}
+
+{% block content %}
+<div class="crumb"><a href="{{ url_for('teacher.classes') }}">班级</a> / <span>{{ room.name }}</span></div>
+
+<section class="card">
+  <div class="card-head">
+    <h2>{{ room.name }}</h2>
+    <span class="muted">班级码：<code class="code-inline">{{ room.join_code }}</code>（学生登录后输入即可加入）</span>
+  </div>
+
+  <table class="table">
+    <thead><tr><th>学生</th><th>用户名</th><th>提交次数</th><th>通过次数</th><th>通过率</th><th>操作</th></tr></thead>
+    <tbody>
+    {% for row in stats %}
+    <tr>
+      <td>{{ row.student.name }}</td>
+      <td class="muted">{{ row.student.username }}</td>
+      <td>{{ row.total }}</td>
+      <td>{{ row.accepted }}</td>
+      <td>
+        <div class="progress"><div class="progress-bar" style="width: {{ row.rate }}%"></div></div>
+        <span class="muted small">{{ row.rate }}%</span>
+      </td>
+      <td>
+        <form method="post" action="{{ url_for('teacher.class_remove_student', room_id=room.id, student_id=row.student.id) }}" onsubmit="return confirm('确定移除该学生？')">
+          {{ csrf_field() }}
+          <button class="btn btn-sm btn-danger" type="submit">移除</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="muted">还没有学生加入，把班级码发给学生吧。</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="card">
+  <div class="card-head"><h2>班级作业</h2><a class="btn btn-primary btn-sm" href="{{ url_for('teacher.homeworks') }}">发布作业</a></div>
+  <table class="table">
+    <thead><tr><th>作业</th><th>截止</th><th>题数</th><th>状态</th><th></th></tr></thead>
+    <tbody>
+    {% for hw in homeworks %}
+    <tr>
+      <td>{{ hw.title }}</td>
+      <td>{{ hw.due_at.strftime('%Y-%m-%d %H:%M') }}</td>
+      <td>{{ hw.problems|length }}</td>
+      <td>{% if hw.is_closed() %}<span class="badge badge-muted">已截止</span>{% else %}<span class="badge badge-success">进行中</span>{% endif %}</td>
+      <td><a class="btn btn-sm btn-outline" href="{{ url_for('teacher.homework_detail', homework_id=hw.id) }}">查看提交</a></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="muted">暂无作业。</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

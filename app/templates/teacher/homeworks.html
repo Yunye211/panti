@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% from "macros.html" import difficulty_badge, tag_list %}
+{% block title %}作业管理{% endblock %}
+
+{% block content %}
+<section class="card">
+  <div class="card-head"><h2>发布作业</h2></div>
+  {% if not rooms %}
+  <p class="muted">请先在“班级”页面创建班级。</p>
+  {% else %}
+  <form method="post" class="form">
+    {{ csrf_field() }}
+    <div class="form-grid">
+      <div>
+        <label>作业标题</label>
+        <input type="text" name="title" required placeholder="如：第3次作业——循环结构">
+        <label>班级</label>
+        <select name="classroom_id" required>
+          {% for room in rooms %}<option value="{{ room.id }}">{{ room.name }}</option>{% endfor %}
+        </select>
+        <label>截止时间</label>
+        <input type="datetime-local" name="due_at" required>
+        <label>作业说明</label>
+        <textarea name="description" rows="4" placeholder="可选"></textarea>
+      </div>
+      <div>
+        <label>选择题目（可多选）</label>
+        <div class="problem-picker">
+          {% for p in problems %}
+          <label class="check pick">
+            <input type="checkbox" name="problems" value="{{ p.id }}">
+            <span>{{ p.id }}. {{ p.title }}</span> {{ difficulty_badge(p) }} {{ tag_list(p) }}
+          </label>
+          {% else %}
+          <span class="muted">题库为空，请先录入题目。</span>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    <button class="btn btn-primary" type="submit">发布作业</button>
+  </form>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="card-head"><h2>已发布作业</h2></div>
+  <table class="table">
+    <thead><tr><th>作业</th><th>班级</th><th>题数</th><th>截止</th><th>提交人数</th><th>状态</th><th>操作</th></tr></thead>
+    <tbody>
+    {% for item in items %}
+    <tr>
+      <td>{{ item.homework.title }}</td>
+      <td class="muted">{{ item.homework.classroom.name }}</td>
+      <td>{{ item.homework.problems|length }}</td>
+      <td>{{ item.homework.due_at.strftime('%Y-%m-%d %H:%M') }}</td>
+      <td>{{ item.submitted }}/{{ item.members }}</td>
+      <td>{% if item.homework.is_closed() %}<span class="badge badge-muted">已截止</span>{% else %}<span class="badge badge-success">进行中</span>{% endif %}</td>
+      <td class="actions">
+        <a class="btn btn-sm btn-outline" href="{{ url_for('teacher.homework_detail', homework_id=item.homework.id) }}">查看</a>
+        <form method="post" action="{{ url_for('teacher.homework_delete', homework_id=item.homework.id) }}" onsubmit="return confirm('确定删除该作业？')">
+          {{ csrf_field() }}
+          <button class="btn btn-sm btn-danger" type="submit">删除</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="muted">还没有发布作业。</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

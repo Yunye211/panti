@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}个人资料{% endblock %}
+
+{% block content %}
+<section class="card narrow">
+  <div class="card-head"><h2>个人资料</h2></div>
+  <form method="post" class="form">
+    {{ csrf_field() }}
+    <label>用户名</label>
+    <input type="text" value="{{ current_user.username }}" disabled>
+    <label>身份</label>
+    <input type="text" value="{{ '教师' if current_user.is_teacher else '学生' }}" disabled>
+    <label>姓名 / 昵称</label>
+    <input type="text" name="display_name" value="{{ current_user.name }}">
+    <label>修改密码（留空则不修改）</label>
+    <input type="password" name="password" placeholder="至少 6 位">
+    <button class="btn btn-primary" type="submit">保存</button>
+  </form>
+</section>
+{% endblock %}

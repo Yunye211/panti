@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% from "macros.html" import difficulty_badge, tag_list, code_editor, result_panel %}
+{% block title %}专项练习 {{ index }}/{{ total }}{% endblock %}
+
+{% block content %}
+<div class="practice-bar card">
+  <div>
+    <strong>专项练习</strong>
+    <span class="muted">第 {{ index }} / {{ total }} 题</span>
+    {% if meta.get('started_at') %}<span class="muted small">开始于 {{ meta.get('started_at') }}</span>{% endif %}
+  </div>
+  <div class="practice-nav">
+    {% if index > 1 %}<a class="btn btn-sm btn-outline" href="{{ url_for('problems.practice_run', index=index-1) }}">上一题</a>{% endif %}
+    {% if index < total %}<a class="btn btn-sm btn-outline" id="next-link" href="{{ url_for('problems.practice_run', index=index+1) }}">下一题</a>{% endif %}
+    <a class="btn btn-sm btn-outline" href="{{ url_for('problems.practice_setup') }}">重新选题</a>
+  </div>
+</div>
+
+<section class="workbench">
+  <div class="problem-pane card">
+    <div class="card-head">
+      <h2>{{ problem.title }}</h2>
+      <div>{{ difficulty_badge(problem) }}</div>
+    </div>
+    <div class="chips">{{ tag_list(problem) }}</div>
+    <div class="markdown">{{ problem.description|e|replace('\n', '<br>')|safe }}</div>
+    <h3 class="sub-title">样例</h3>
+    {% for tc in samples %}
+    <div class="sample">
+      <div><strong>输入 {{ loop.index }}</strong><pre>{{ tc.input_data }}</pre></div>
+      <div><strong>输出 {{ loop.index }}</strong><pre>{{ tc.expected_output }}</pre></div>
+    </div>
+    {% else %}
+    <p class="muted">该题暂无公开样例。</p>
+    {% endfor %}
+  </div>
+
+  <div class="editor-pane">
+    {{ code_editor(code) }}
+    <div class="editor-actions">
+      <button class="btn btn-primary" id="btn-submit"
+              data-problem="{{ problem.id }}"
+              data-source="practice"
+              data-save="1">提交判题</button>
+      <button class="btn btn-outline" id="btn-toggle-run">自定义输入运行</button>
+    </div>
+    <div class="run-box hidden" id="run-box">
+      <label>stdin 输入：</label>
+      <textarea id="custom-input" rows="3"></textarea>
+      <button class="btn btn-outline btn-sm" id="btn-run">运行</button>
+      <pre class="output" id="run-output"></pre>
+    </div>
+    {{ result_panel() }}
+  </div>
+</section>
+{% endblock %}

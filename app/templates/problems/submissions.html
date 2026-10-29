@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% from "macros.html" import status_badge %}
+{% block title %}我的提交记录{% endblock %}
+
+{% block content %}
+<section class="card">
+  <div class="card-head">
+    <h2>我的提交记录</h2>
+    <span class="muted">共 {{ total }} 次提交，通过 {{ accepted }} 次</span>
+  </div>
+
+  <form class="filter-bar" method="get">
+    <select name="status">
+      <option value="">全部结果</option>
+      <option value="AC" {% if status=='AC' %}selected{% endif %}>通过</option>
+      <option value="WA" {% if status=='WA' %}selected{% endif %}>答案错误</option>
+      <option value="RE" {% if status=='RE' %}selected{% endif %}>运行时错误</option>
+      <option value="CE" {% if status=='CE' %}selected{% endif %}>语法错误</option>
+      <option value="TLE" {% if status=='TLE' %}selected{% endif %}>运行超时</option>
+    </select>
+    <select name="source">
+      <option value="">全部来源</option>
+      <option value="free" {% if source=='free' %}selected{% endif %}>自由练习</option>
+      <option value="practice" {% if source=='practice' %}selected{% endif %}>专项练习</option>
+      <option value="homework" {% if source=='homework' %}selected{% endif %}>作业</option>
+    </select>
+    <button class="btn btn-outline btn-sm" type="submit">筛选</button>
+  </form>
+
+  <table class="table">
+    <thead><tr><th>#</th><th>题目</th><th>结果</th><th>测试点</th><th>耗时</th><th>来源</th><th>时间</th><th></th></tr></thead>
+    <tbody>
+    {% for s in submissions %}
+    <tr>
+      <td class="muted">{{ s.id }}</td>
+      <td>{{ s.problem.title }}</td>
+      <td>{{ status_badge(s.status, s.status_label) }}</td>
+      <td>{{ s.passed_count }}/{{ s.total_count }}</td>
+      <td class="muted">{{ s.max_time_ms }} ms</td>
+      <td class="muted">{{ {'free':'自由练习','practice':'专项练习','homework':'作业'}.get(s.source, s.source) }}</td>
+      <td class="muted">{{ s.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+      <td><a class="btn btn-sm btn-outline" href="{{ url_for('problems.submission_detail', submission_id=s.id) }}">查看</a></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="8" class="muted">暂无提交记录。</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  {% if pagination.pages > 1 %}
+  <div class="pager">
+    {% if pagination.has_prev %}<a class="btn btn-sm btn-outline" href="{{ url_for('problems.submissions', page=pagination.prev_num, status=status, source=source) }}">上一页</a>{% endif %}
+    <span class="muted">第 {{ pagination.page }} / {{ pagination.pages }} 页</span>
+    {% if pagination.has_next %}<a class="btn btn-sm btn-outline" href="{{ url_for('problems.submissions', page=pagination.next_num, status=status, source=source) }}">下一页</a>{% endif %}
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

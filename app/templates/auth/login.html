@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}登录 - Python 在线判题平台{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+  <div class="auth-card">
+    <h2>账号登录</h2>
+    <p class="muted">学生使用学号/用户名登录，教师使用教师账号登录。</p>
+    <form method="post" class="form">
+      {{ csrf_field() }}
+      <label>用户名</label>
+      <input type="text" name="username" required autofocus placeholder="请输入用户名">
+      <label>密码</label>
+      <input type="password" name="password" required placeholder="请输入密码">
+      <button class="btn btn-primary btn-block" type="submit">登录</button>
+    </form>
+    <p class="muted small">还没有账号？<a href="{{ url_for('auth.register') }}">立即注册</a></p>
+    <div class="demo-tip">
+      演示账号：学生 <code>student / 123456</code>；教师 <code>teacher / 123456</code>
+    </div>
+  </div>
+</div>
+{% endblock %}

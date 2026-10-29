@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% from "macros.html" import status_badge %}
+{% block title %}提交查看{% endblock %}
+
+{% block content %}
+<section class="card">
+  <div class="card-head"><h2>学生提交记录</h2></div>
+  <form class="filter-bar" method="get">
+    <select name="room" onchange="this.form.submit()">
+      <option value="">全部班级</option>
+      {% for r in rooms %}
+      <option value="{{ r.id }}" {% if room_id == r.id %}selected{% endif %}>{{ r.name }}</option>
+      {% endfor %}
+    </select>
+    <select name="student">
+      <option value="">全部学生</option>
+      {% for s in students %}
+      <option value="{{ s.id }}" {% if student_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+      {% endfor %}
+    </select>
+    <select name="status">
+      <option value="">全部结果</option>
+      {% for key, label in status_labels.items() %}
+      <option value="{{ key }}" {% if status == key %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn btn-outline btn-sm" type="submit">筛选</button>
+  </form>
+
+  <table class="table">
+    <thead><tr><th>#</th><th>学生</th><th>题目</th><th>作业</th><th>结果</th><th>测试点</th><th>时间</th><th>代码</th></tr></thead>
+    <tbody>
+    {% for s in submissions %}
+    <tr>
+      <td class="muted">{{ s.id }}</td>
+      <td>{{ s.author.name }}</td>
+      <td>{{ s.problem.title }}</td>
+      <td class="muted">{{ s.homework.title if s.homework else '-' }}</td>
+      <td>{{ status_badge(s.status, s.status_label) }}</td>
+      <td>{{ s.passed_count }}/{{ s.total_count }}</td>
+      <td class="muted">{{ s.created_at.strftime('%m-%d %H:%M') }}</td>
+      <td><a class="btn btn-sm btn-outline" href="{{ url_for('problems.submission_detail', submission_id=s.id) }}">查看</a></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="8" class="muted">暂无符合条件的提交。</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  {% if pagination.pages > 1 %}
+  <div class="pager">
+    {% if pagination.has_prev %}<a class="btn btn-sm btn-outline" href="{{ url_for('teacher.submissions', page=pagination.prev_num, room=room_id, student=student_id, status=status) }}">上一页</a>{% endif %}
+    <span class="muted">第 {{ pagination.page }} / {{ pagination.pages }} 页</span>
+    {% if pagination.has_next %}<a class="btn btn-sm btn-outline" href="{{ url_for('teacher.submissions', page=pagination.next_num, room=room_id, student=student_id, status=status) }}">下一页</a>{% endif %}
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

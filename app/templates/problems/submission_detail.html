@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% from "macros.html" import status_badge, difficulty_badge %}
+{% block title %}提交 #{{ sub.id }}{% endblock %}
+
+{% block content %}
+<section class="card">
+  <div class="card-head">
+    <h2>提交 #{{ sub.id }} · {{ sub.problem.title }}</h2>
+    {{ status_badge(sub.status, sub.status_label) }}
+  </div>
+  <div class="meta-row">
+    <span><strong>提交者：</strong>{{ sub.author.name }}</span>
+    <span><strong>知识点：</strong>{% for t in sub.problem.tags %}{{ t.name }} {% endfor %}</span>
+    <span>{{ difficulty_badge(sub.problem) }}</span>
+    <span><strong>通过测试点：</strong>{{ sub.passed_count }}/{{ sub.total_count }}</span>
+    <span><strong>得分：</strong>{{ sub.score }}</span>
+    <span><strong>耗时：</strong>{{ sub.max_time_ms }} ms</span>
+    <span><strong>时间：</strong>{{ sub.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</span>
+    {% if sub.homework %}<span><strong>作业：</strong>{{ sub.homework.title }}{% if sub.is_late %} <span class="text-danger">（逾期）</span>{% endif %}</span>{% endif %}
+  </div>
+  {% if sub.message %}
+  <div class="result-message">{{ sub.message }}</div>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="card-head"><h2>源代码</h2></div>
+  <pre class="code-view"><code>{{ sub.code }}</code></pre>
+</section>
+{% endblock %}

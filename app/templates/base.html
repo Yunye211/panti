@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>{% block title %}Python 在线判题平台{% endblock %}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-inner">
+    <a class="brand" href="{{ url_for('main.index') }}"><span class="logo">Py</span> 在线编程判题平台</a>
+    <div class="nav-links">
+      <a href="{{ url_for('main.index') }}">首页</a>
+      {% if current_user.is_authenticated and current_user.is_student %}
+        <a href="{{ url_for('problems.index') }}">题库</a>
+        <a href="{{ url_for('problems.practice_setup') }}">专项练习</a>
+        <a href="{{ url_for('homework.index') }}">我的作业</a>
+        <a href="{{ url_for('problems.submissions') }}">提交记录</a>
+      {% elif current_user.is_authenticated and current_user.is_teacher %}
+        <a href="{{ url_for('teacher.problems') }}">题库管理</a>
+        <a href="{{ url_for('teacher.classes') }}">班级</a>
+        <a href="{{ url_for('teacher.homeworks') }}">作业</a>
+        <a href="{{ url_for('teacher.stats') }}">学情统计</a>
+        <a href="{{ url_for('teacher.submissions') }}">提交查看</a>
+      {% endif %}
+    </div>
+    <div class="nav-user">
+      {% if current_user.is_authenticated %}
+        <span class="role-tag">{{ '教师' if current_user.is_teacher else '学生' }}</span>
+        <a href="{{ url_for('main.profile') }}">{{ current_user.name }}</a>
+        <a class="btn btn-sm btn-outline" href="{{ url_for('auth.logout') }}">退出</a>
+      {% else %}
+        <a class="btn btn-sm btn-primary" href="{{ url_for('auth.login') }}">登录</a>
+        <a class="btn btn-sm btn-outline" href="{{ url_for('auth.register') }}">注册</a>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+
+<main class="container">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-wrap">
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="footer">
+  <div>Python 在线编程与自动判题平台 · 学生代码在服务器沙箱中运行</div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/python/python.min.js"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

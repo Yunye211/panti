@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% from "macros.html" import difficulty_badge, tag_list %}
+{% block title %}题库管理{% endblock %}
+
+{% block content %}
+<section class="card">
+  <div class="card-head">
+    <h2>题库管理</h2>
+    <a class="btn btn-primary btn-sm" href="{{ url_for('teacher.problem_new') }}">录入新题目</a>
+  </div>
+
+  <form class="filter-bar" method="get">
+    <input type="text" name="q" value="{{ keyword }}" placeholder="搜索标题">
+    <select name="tag">
+      <option value="">全部知识点</option>
+      {% for tag in tags %}
+      <option value="{{ tag.id }}" {% if tag_id == tag.id %}selected{% endif %}>{{ tag.name }}</option>
+      {% endfor %}
+    </select>
+    <select name="difficulty">
+      <option value="">全部难度</option>
+      {% for key, label in difficulties.items() %}
+      <option value="{{ key }}" {% if difficulty == key %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <label class="check"><input type="checkbox" name="mine" value="1" {% if only_mine %}checked{% endif %}> 仅看我创建的</label>
+    <button class="btn btn-outline btn-sm" type="submit">筛选</button>
+  </form>
+
+  <table class="table">
+    <thead><tr><th>#</th><th>题目</th><th>知识点</th><th>难度</th><th>测试点</th><th>操作</th></tr></thead>
+    <tbody>
+    {% for p in problems %}
+    <tr>
+      <td class="muted">{{ p.id }}</td>
+      <td><a href="{{ url_for('teacher.problem_edit', problem_id=p.id) }}">{{ p.title }}</a></td>
+      <td>{{ tag_list(p) }}</td>
+      <td>{{ difficulty_badge(p) }}</td>
+      <td class="muted">{{ p.test_cases|length }} 个</td>
+      <td class="actions">
+        <a class="btn btn-sm btn-outline" href="{{ url_for('teacher.problem_preview', problem_id=p.id) }}">试做</a>
+        <a class="btn btn-sm btn-outline" href="{{ url_for('teacher.problem_edit', problem_id=p.id) }}">编辑</a>
+        <form method="post" action="{{ url_for('teacher.problem_delete', problem_id=p.id) }}" onsubmit="return confirm('确定删除该题目？')">
+          {{ csrf_field() }}
+          <button class="btn btn-sm btn-danger" type="submit">删除</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="muted">还没有题目，点击右上角录入。</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

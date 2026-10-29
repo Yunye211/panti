@@ -1,0 +1,35 @@
+{% macro status_badge(status, label) %}
+  {% set cls = {'AC':'success','WA':'warning','RE':'danger','CE':'danger','TLE':'timeout','未提交':'muted'}.get(status, 'muted') %}
+  <span class="badge badge-{{ cls }}">{{ label }}</span>
+{% endmacro %}
+
+{% macro difficulty_badge(problem) %}
+  {% set cls = {'easy':'success','medium':'warning','hard':'danger'}.get(problem.difficulty, 'muted') %}
+  <span class="badge badge-{{ cls }}">{{ problem.difficulty_label }}</span>
+{% endmacro %}
+
+{% macro tag_list(problem) %}
+  {% for tag in problem.tags %}<span class="chip">{{ tag.name }}</span>{% endfor %}
+{% endmacro %}
+
+{% macro code_editor(code='', height=360) %}
+  <div class="editor-card">
+    <div class="editor-head">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="editor-title">solution.py</span>
+    </div>
+    <textarea class="code-area" spellcheck="false">{{ code }}</textarea>
+  </div>
+{% endmacro %}
+
+{% macro result_panel() %}
+  <div class="result-panel hidden" id="result-panel">
+    <div class="result-head">
+      <span id="result-status" class="badge">判题中…</span>
+      <span id="result-summary" class="muted"></span>
+      <span class="spinner hidden" id="result-spinner"></span>
+    </div>
+    <div id="result-message" class="result-message"></div>
+    <div id="result-cases" class="case-list"></div>
+  </div>
+{% endmacro %}

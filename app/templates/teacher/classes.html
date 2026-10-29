@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}班级管理{% endblock %}
+
+{% block content %}
+<section class="card">
+  <div class="card-head"><h2>我的班级</h2></div>
+  <form method="post" class="inline-form">
+    {{ csrf_field() }}
+    <input type="text" name="name" placeholder="班级名称，如：2024级计算机1班" required>
+    <button class="btn btn-primary btn-sm" type="submit">创建班级</button>
+  </form>
+
+  <table class="table">
+    <thead><tr><th>班级</th><th>班级码</th><th>学生数</th><th>作业数</th><th>创建时间</th><th>操作</th></tr></thead>
+    <tbody>
+    {% for room in rooms %}
+    <tr>
+      <td>{{ room.name }}</td>
+      <td><code class="code-inline">{{ room.join_code }}</code></td>
+      <td>{{ room.students|length }}</td>
+      <td>{{ room.homeworks|length }}</td>
+      <td class="muted">{{ room.created_at.strftime('%Y-%m-%d') }}</td>
+      <td class="actions">
+        <a class="btn btn-sm btn-outline" href="{{ url_for('teacher.class_detail', room_id=room.id) }}">详情</a>
+        <form method="post" action="{{ url_for('teacher.class_delete', room_id=room.id) }}" onsubmit="return confirm('删除班级会同时删除其作业，确定继续？')">
+          {{ csrf_field() }}
+          <button class="btn btn-sm btn-danger" type="submit">删除</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="muted">还没有班级，先创建一个并把班级码发给学生。</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

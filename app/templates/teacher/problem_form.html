@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% from "macros.html" import code_editor, result_panel %}
+{% block title %}{{ '编辑题目' if problem else '录入题目' }}{% endblock %}
+
+{% block content %}
+<div class="crumb"><a href="{{ url_for('teacher.problems') }}">题库管理</a> / <span>{{ '编辑题目' if problem else '录入题目' }}</span></div>
+
+<form method="post" class="problem-form" id="problem-form">
+  {{ csrf_field() }}
+  <section class="card">
+    <div class="card-head"><h2>{{ '编辑题目' if problem else '录入新题目' }}</h2></div>
+    <div class="form-grid">
+      <div>
+        <label>题目标题</label>
+        <input type="text" name="title" required value="{{ problem.title if problem else '' }}">
+
+        <label>难度</label>
+        <select name="difficulty">
+          {% for key, label in difficulties.items() %}
+          <option value="{{ key }}" {% if problem and problem.difficulty == key %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+
+        <label>知识点标签</label>
+        <div class="check-grid">
+          {% for tag in tags %}
+          <label class="check"><input type="checkbox" name="tags" value="{{ tag.id }}"
+            {% if problem and tag in problem.tags %}checked{% endif %}> {{ tag.name }}</label>
+          {% endfor %}
+        </div>
+        <input type="text" name="new_tags" placeholder="新建知识点，多个用英文逗号分隔（如：递归,文件读写）">
+      </div>
+      <div>
+        <label>题目描述（支持换行）</label>
+        <textarea name="description" rows="10" placeholder="说明输入格式、输出格式与示例">{{ problem.description if problem else '' }}</textarea>
+        <label>初始代码（学生打开题目时显示）</label>
+        <textarea name="starter_code" rows="6">{{ problem.starter_code if problem else '' }}</textarea>
+        <label>参考答案（仅教师可见，可选）</label>
+        <textarea name="reference_code" rows="6">{{ problem.reference_code if problem else '' }}</textarea>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <h2>测试用例</h2>
+      <button class="btn btn-outline btn-sm" type="button" id="add-case">+ 添加测试点</button>
+    </div>
+    <p class="muted small">每个测试点包含“标准输入”和“期望输出”；勾选“样例”的测试点会展示给学生。</p>
+    <div id="case-list">
+      {% if problem %}
+        {% for tc in problem.test_cases %}
+        <div class="case-row">
+          <div class="case-head">
+            <strong>测试点 <span class="case-index">{{ loop.index }}</span></strong>
+            <label class="check"><input type="checkbox" name="tc_sample" value="{{ loop.index0 }}" {% if tc.is_sample %}checked{% endif %}> 作为样例展示</label>
+            <button class="btn btn-sm btn-danger" type="button" onclick="removeCase(this)">删除</button>
+          </div>
+          <div class="case-body">
+            <div><label>标准输入（stdin）</label><textarea name="tc_input" rows="3">{{ tc.input_data }}</textarea></div>
+            <div><label>期望输出（stdout）</label><textarea name="tc_output" rows="3" required>{{ tc.expected_output }}</textarea></div>
+          </div>
+        </div>
+        {% endfor %}
+      {% endif %}
+    </div>
+  </section>
+
+  <div class="hidden" id="case-template">
+    <div class="case-row">
+      <div class="case-head">
+        <strong>测试点 <span class="case-index">1</span></strong>
+        <label class="check"><input type="checkbox" name="tc_sample" value="0" checked> 作为样例展示</label>
+        <button class="btn btn-sm btn-danger" type="button" onclick="removeCase(this)">删除</button>
+      </div>
+      <div class="case-body">
+        <div><label>标准输入（stdin）</label><textarea name="tc_input" rows="3"></textarea></div>
+        <div><label>期望输出（stdout）</label><textarea name="tc_output" rows="3" required></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-footer">
+    <button class="btn btn-primary" type="submit">保存题目</button>
+    <a class="btn btn-outline" href="{{ url_for('teacher.problems') }}">返回</a>
+  </div>
+</form>
+
+{% if problem %}
+<section class="card">
+  <div class="card-head"><h2>试做验证（不会记录为提交）</h2></div>
+  {{ code_editor(problem.reference_code or problem.starter_code or '') }}
+  <div class="editor-actions">
+    <button class="btn btn-primary" id="btn-submit"
+            data-problem="{{ problem.id }}" data-save="0" data-source="test">运行全部测试点</button>
+  </div>
+  {{ result_panel() }}
+</section>
+{% endif %}
+{% endblock %}

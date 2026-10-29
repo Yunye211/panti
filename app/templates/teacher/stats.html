@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}学情统计{% endblock %}
+
+{% block content %}
+<section class="card">
+  <div class="card-head"><h2>学情统计</h2></div>
+  <form class="filter-bar" method="get">
+    <select name="room" onchange="this.form.submit()">
+      {% for r in rooms %}
+      <option value="{{ r.id }}" {% if room and room.id == r.id %}selected{% endif %}>{{ r.name }}</option>
+      {% else %}
+      <option value="">暂无班级</option>
+      {% endfor %}
+    </select>
+    <span class="muted">共 {{ total_submissions }} 条作业提交</span>
+  </form>
+
+  {% if room %}
+  <h3 class="sub-title">知识点正确率（{{ room.name }}）</h3>
+  {% if knowledge_stats %}
+  <table class="table">
+    <thead><tr><th>知识点</th><th>提交数</th><th>通过数</th><th>正确率</th></tr></thead>
+    <tbody>
+    {% for k in knowledge_stats %}
+    <tr>
+      <td>{{ k.name }}</td>
+      <td>{{ k.total }}</td>
+      <td>{{ k.accepted }}</td>
+      <td><div class="progress"><div class="progress-bar" style="width: {{ k.rate }}%"></div></div><span class="muted small">{{ k.rate }}%</span></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">该班级暂无作业提交数据。</p>{% endif %}
+
+  <h3 class="sub-title">学生学情</h3>
+  <table class="table">
+    <thead><tr><th>学生</th><th>提交次数</th><th>通过提交</th><th>已 AC 题目数</th><th>通过率</th></tr></thead>
+    <tbody>
+    {% for s in student_stats %}
+    <tr>
+      <td>{{ s.student.name }}<div class="muted small">{{ s.student.username }}</div></td>
+      <td>{{ s.total }}</td>
+      <td>{{ s.accepted }}</td>
+      <td>{{ s.solved }}</td>
+      <td><div class="progress"><div class="progress-bar" style="width: {{ s.rate }}%"></div></div><span class="muted small">{{ s.rate }}%</span></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="muted">班级暂无学生。</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">请先创建班级。</p>
+  {% endif %}
+</section>
+{% endblock %}

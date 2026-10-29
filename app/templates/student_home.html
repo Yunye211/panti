@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% from "macros.html" import status_badge %}
+{% block title %}学生首页{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <div>
+    <h1>你好，{{ current_user.name }} 👋</h1>
+    <p class="muted">选择知识点与难度开始专项练习，在线写代码并提交，系统会自动判题。</p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="{{ url_for('problems.practice_setup') }}">开始专项练习</a>
+      <a class="btn btn-outline" href="{{ url_for('problems.index') }}">浏览题库</a>
+    </div>
+  </div>
+  <div class="stat-row">
+    <div class="stat-card"><div class="stat-num">{{ solved_problems }}</div><div class="stat-label">已通过题目</div></div>
+    <div class="stat-card"><div class="stat-num">{{ total }}</div><div class="stat-label">提交次数</div></div>
+    <div class="stat-card"><div class="stat-num">{{ accepted }}</div><div class="stat-label">通过提交</div></div>
+    <div class="stat-card"><div class="stat-num">{{ problem_count }}</div><div class="stat-label">题库总量</div></div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="card-head"><h2>加入班级</h2></div>
+  <form method="post" action="{{ url_for('main.join_class') }}" class="inline-form">
+    {{ csrf_field() }}
+    <input type="text" name="join_code" placeholder="输入教师提供的班级码" required>
+    <button class="btn btn-outline" type="submit">加入班级</button>
+  </form>
+</section>
+
+<section class="grid-2">
+  <div class="card">
+    <div class="card-head"><h2>我的作业</h2><a class="muted small" href="{{ url_for('homework.index') }}">查看全部</a></div>
+    {% if homeworks %}
+    <table class="table">
+      <thead><tr><th>作业</th><th>班级</th><th>截止</th><th>完成</th></tr></thead>
+      <tbody>
+      {% for room, hw in homeworks %}
+        <tr>
+          <td><a href="{{ url_for('homework.detail', homework_id=hw.id) }}">{{ hw.title }}</a></td>
+          <td class="muted">{{ room.name }}</td>
+          <td class="{% if hw.is_closed() %}text-danger{% endif %}">{{ hw.due_at.strftime('%m-%d %H:%M') }}</td>
+          <td class="muted">{% if hw.is_closed() %}已截止{% else %}进行中{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p class="muted">暂未加入班级或没有作业。</p>{% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>最近提交</h2><a class="muted small" href="{{ url_for('problems.submissions') }}">查看全部</a></div>
+    {% if recent %}
+    <ul class="list">
+      {% for s in recent %}
+      <li>
+        <a href="{{ url_for('problems.submission_detail', submission_id=s.id) }}">{{ s.problem.title }}</a>
+        {{ status_badge(s.status, s.status_label) }}
+        <span class="muted small">{{ s.created_at.strftime('%m-%d %H:%M') }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="muted">还没有提交记录，快去题库练习吧。</p>{% endif %}
+  </div>
+</section>
+{% endblock %}

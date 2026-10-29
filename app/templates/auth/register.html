@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}注册 - Python 在线判题平台{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+  <div class="auth-card">
+    <h2>注册账号</h2>
+    <form method="post" class="form" id="register-form">
+      {{ csrf_field() }}
+      <label>用户名（登录使用，3~32 位）</label>
+      <input type="text" name="username" required value="{{ form.get('username', '') }}">
+      <label>姓名 / 昵称</label>
+      <input type="text" name="display_name" value="{{ form.get('display_name', '') }}" placeholder="可选">
+      <label>密码（至少 6 位）</label>
+      <input type="password" name="password" required>
+      <label>确认密码</label>
+      <input type="password" name="confirm" required>
+      <label>身份</label>
+      <select name="role" id="role-select" onchange="toggleInvite()">
+        <option value="student" selected>学生</option>
+        <option value="teacher">教师</option>
+      </select>
+      <div id="invite-wrap" class="hidden">
+        <label>教师注册码</label>
+        <input type="text" name="invite_code" placeholder="教师身份需填写注册码">
+        <p class="muted small">默认注册码：<code>teacher2024</code>（可通过环境变量 TEACHER_INVITE_CODE 修改）</p>
+      </div>
+      <button class="btn btn-primary btn-block" type="submit">注册</button>
+    </form>
+    <p class="muted small">已有账号？<a href="{{ url_for('auth.login') }}">去登录</a></p>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleInvite() {
+  var role = document.getElementById('role-select').value;
+  document.getElementById('invite-wrap').classList.toggle('hidden', role !== 'teacher');
+}
+toggleInvite();
+</script>
+{% endblock %}

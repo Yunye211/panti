@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}专项练习{% endblock %}
+
+{% block content %}
+<section class="card narrow">
+  <div class="card-head"><h2>专项练习设置</h2></div>
+  <p class="muted">选择要练习的知识点与难度，系统会从题库中随机抽取题目组成一套练习。</p>
+  <form method="post" class="form">
+    {{ csrf_field() }}
+    <label>知识点（可多选，不选表示全部）</label>
+    <div class="check-grid">
+      {% for tag in tags %}
+      <label class="check"><input type="checkbox" name="tags" value="{{ tag.id }}"> {{ tag.name }}</label>
+      {% else %}
+      <span class="muted">暂无知识点，请联系教师录入题目时创建。</span>
+      {% endfor %}
+    </div>
+
+    <label>难度</label>
+    <select name="difficulty">
+      <option value="">不限</option>
+      {% for key, label in difficulties.items() %}
+      <option value="{{ key }}">{{ label }}</option>
+      {% endfor %}
+    </select>
+
+    <label>题目数量</label>
+    <input type="number" name="count" value="5" min="1" max="20">
+
+    <button class="btn btn-primary btn-block" type="submit">开始练习</button>
+  </form>
+</section>
+{% endblock %}
