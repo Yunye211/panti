@@ -46,7 +46,8 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(64), unique=True, nullable=False, index=True)
     display_name = db.Column(db.String(64), nullable=False, default="")
     password_hash = db.Column(db.String(256), nullable=False)
-    role = db.Column(db.String(16), nullable=False, default="student")  # student / teacher
+    role = db.Column(db.String(16), nullable=False, default="student")  # student / teacher / admin
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
 
     joined_classrooms = db.relationship(
@@ -66,6 +67,14 @@ class User(UserMixin, db.Model):
     @property
     def is_student(self):
         return self.role == "student"
+
+    @property
+    def is_admin(self):
+        return self.role == "admin"
+
+    @property
+    def role_label(self):
+        return {"student": "学生", "teacher": "教师", "admin": "管理员"}.get(self.role, self.role)
 
     @property
     def name(self):

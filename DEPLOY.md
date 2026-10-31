@@ -2,19 +2,21 @@
 
 Python 在线编程与自动判题平台（COBEBUDDY）的完整部署指南。
 
-- 技术栈：Flask + SQLAlchemy + Gunicorn + Docker（判题沙箱）+ Supabase（PostgreSQL 云端数据库）
+- 技术栈：Flask + SQLAlchemy + Gunicorn + Docker（判题沙箱）+ PostgreSQL 数据库容器
 - 仓库：https://github.com/Yunye211/panti
+- 线上环境：阿里云轻量应用服务器（成都 2C2G），`http://47.108.187.168:5000`
 
-## 架构
+## 架构（当前线上形态）
 
 ```
-浏览器 ──> 公网/局域网 IP:5000 ──> Docker 容器（gunicorn 2 workers）
-                                    ├── Flask 应用（app/）
-                                    ├── 判题沙箱（app/sandbox.py，子进程 + 模块拦截 + resource 限制）
-                                    └── Supabase PostgreSQL（云端，无状态容器）
+浏览器 ──> 公网 IP:5000 ──> docker-compose
+                              ├── cobebuddy：Flask 应用（gunicorn 多线程）
+                              │     └── 判题沙箱（app/sandbox.py，子进程 + 模块拦截 + resource 限制）
+                              └── db：PostgreSQL（与 Web 同机，数据卷持久化）
 ```
 
-数据库在 Supabase 云端，容器本身无状态，可随时重建。
+数据库采用**同机 PostgreSQL 容器**（早期用 Supabase 欧洲节点时跨洲延迟明显，11 个页面平均响应约 14ms 的问题已通过本地化消除）。
+Web 容器无状态，可随时重建；数据都在 `db` 容器的数据卷里。
 
 ## 一、本地开发运行
 
@@ -78,7 +80,7 @@ docker compose up -d --build
 
 | 变量 | 必填 | 说明 |
 | --- | --- | --- |
-| `DATABASE_URL` | ✅ | SQLAlchemy 连接串。Supabase 示例：`postgresql+psycopg://postgres.项目引用:密码@aws-0-区域.pooler.supabase.com:6543/postgres`；本地 SQLite：`sqlite:///instance/judge.db` |
+| `DATABASE_URL` | ✅ | SQLAlchemy 连接串。同机 PG 容器（推荐，docker-compose 内置）：`postgresql+psycopg://cobebuddy:密码@db:5432/cobebuddy`；Supabase 云端：`postgresql+psycopg://postgres.项目引用:密码@aws-0-区域.pooler.supabase.com:6543/postgres`；本地开发 SQLite：`sqlite:///instance/judge.db` |
 | `SECRET_KEY` | ✅ | 会话加密密钥，生产环境必须设置为随机长字符串 |
 | `JUDGE_MAX_CONCURRENCY` | 否 | 同时判题进程数，默认 4；2G 内存服务器建议设为 2 |
 | `JUDGE_TIME_LIMIT` | 否 | 单测试点超时（秒），默认 2 |
@@ -117,13 +119,41 @@ docker compose exec cobebuddy python /tmp/verify.py   # 进容器调试
 ## 七、数据库
 
 - 本地开发：`sqlite:///instance/judge.db`（默认）
-- 生产：Supabase PostgreSQL（云端，推荐）
-- SQLite → Supabase 迁移脚本：`instance/_pg_migrate.py`（读取 `DATABASE_URL` 环境变量执行，自动按外键顺序导入并核对行数）
+- 生产：**同机 PostgreSQL 容器**（`docker-compose.yml` 的 `db` 服务，数据卷持久化，与 Web 同机避免跨洲延迟）
+- 远端 PostgreSQL（如 Supabase）仍可用，只需改 `DATABASE_URL`；跨洲部署时页面延迟会明显上升，不推荐
+- SQLite → PostgreSQL 迁移脚本：`instance/_pg_migrate.py`（读取 `DATABASE_URL` 环境变量执行，自动按外键顺序导入并核对行数）
+- 轻量迁移：应用启动时 `_ensure_schema()` 会自动为旧库补列（如 `users.is_active`），兼容 SQLite 与 PostgreSQL，无需 Alembic
+
+## 七·补、管理员账号
+
+- 初始化演示数据时自动创建管理员：`admin / admin123`（`python seed.py`，幂等，已存在则跳过）
+- 线上升级（已有库）只需重新构建容器：应用启动时自动补充管理员所需的表字段；随后在服务器执行下列命令创建管理员：
+
+```bash
+docker compose exec cobebuddy python seed.py      # 初始化/补齐演示数据与管理员账号
+docker compose exec cobebuddy python - <<'PY'      # 仅创建管理员（不改动其它数据）
+from app import create_app
+from app.extensions import db
+from app.models import User
+app = create_app()
+with app.app_context():
+    if not User.query.filter_by(username="admin").first():
+        u = User(username="admin", display_name="系统管理员", role="admin")
+        u.set_password("改成强密码")
+        db.session.add(u); db.session.commit()
+        print("管理员已创建")
+PY
+```
+
+- 管理员能力：管理控制台（账号/题目/班级/作业/提交统计）、用户管理（按角色与关键字查询学生/教师/管理员）、
+  新增与编辑账号、重置密码（默认 `123456`）、停用/启用、删除账号（连带清理提交与所带班级），且系统始终至少保留一个管理员
+- 管理员同时拥有教师端访问权；注册页不开放管理员角色，避免提权
 
 ## 八、安全清单
 
 - [ ] `SECRET_KEY` 已改为随机值
 - [ ] 已启用 HTTPS（证书自动续期）
 - [ ] 修改默认演示账号密码 / `TEACHER_INVITE_CODE`
+- [ ] 修改默认管理员密码（演示默认 `admin/admin123`，上线必须改）
 - [ ] 云服务器 SSH 密码使用强密码，必要时改密钥登录
 - [ ] 公网部署时限制注册或控制判题并发

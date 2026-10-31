@@ -26,10 +26,14 @@
         <a href="{{ url_for('teacher.stats') }}">学情统计</a>
         <a href="{{ url_for('teacher.submissions') }}">提交查看</a>
       {% endif %}
+      {% if current_user.is_authenticated and current_user.is_admin %}
+        <a href="{{ url_for('admin.dashboard') }}">管理控制台</a>
+        <a href="{{ url_for('admin.users') }}">用户管理</a>
+      {% endif %}
     </div>
     <div class="nav-user">
       {% if current_user.is_authenticated %}
-        <span class="role-tag">{{ '教师' if current_user.is_teacher else '学生' }}</span>
+        <span class="role-tag">{{ current_user.role_label }}</span>
         <a href="{{ url_for('main.profile') }}">{{ current_user.name }}</a>
         <a class="btn btn-sm btn-outline" href="{{ url_for('auth.logout') }}">退出</a>
       {% else %}

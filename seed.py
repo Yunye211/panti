@@ -174,6 +174,13 @@ def main():
         for name in KNOWLEDGE_POINTS:
             get_or_create_kp(name)
 
+        admin = User.query.filter_by(username="admin").first()
+        if not admin:
+            admin = User(username="admin", display_name="系统管理员", role="admin")
+            admin.set_password("admin123")
+            db.session.add(admin)
+            db.session.flush()
+
         teacher = User.query.filter_by(username="teacher").first()
         if not teacher:
             teacher = User(username="teacher", display_name="王老师", role="teacher")
@@ -245,6 +252,7 @@ def main():
 
         db.session.commit()
         print("初始化完成：新增题目 %d 道" % created)
+        print("管理员账号：admin / admin123")
         print("教师账号：teacher / 123456")
         print("学生账号：student / 123456、student2 / 123456")
         print("班级码：CLASS1")

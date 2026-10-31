@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}{{ '编辑账号' if user else '新增账号' }}{% endblock %}
+
+{% block content %}
+<section class="card">
+  <div class="card-head"><h2>{{ '编辑账号' if user else '新增账号' }}</h2></div>
+  <form method="post" class="form">
+    {{ csrf_field() }}
+    <label>用户名（3~32 位字母、数字、下划线、点或短横线）</label>
+    <input type="text" name="username" value="{{ form.get('username') if form else user.username }}" required>
+
+    <label>姓名 / 昵称</label>
+    <input type="text" name="display_name" value="{{ form.get('display_name') if form else (user.display_name if user else '') }}" placeholder="可留空，默认与用户名相同">
+
+    <label>角色</label>
+    <select name="role">
+      {% for value, label in roles %}
+      <option value="{{ value }}" {% if (form and form.get('role') == value) or (user and user.role == value) or (not user and not form and value == 'student') %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+
+    <label>密码{% if user %}（留空表示不修改）{% else %}（留空默认 {{ '123456' }}）{% endif %}</label>
+    <input type="password" name="password" placeholder="至少 6 位">
+
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">保存</button>
+      <a class="btn btn-outline" href="{{ url_for('admin.users') }}">返回</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

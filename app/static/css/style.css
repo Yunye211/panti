@@ -160,6 +160,12 @@ h2, h3 { color: #111827; }
 .chip { display: inline-block; background: #eef2ff; color: #4338ca; border-radius: 6px; padding: 1px 8px; font-size: 12px; margin: 0 4px 4px 0; }
 .chips { margin-bottom: 10px; }
 .muted { color: var(--muted); }
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 12px; margin: 12px 0; }
+.stat-box { background: #f9fafb; border: 1px solid var(--border); border-radius: 12px; padding: 12px; text-align: center; }
+.filters { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+.filters input, .filters select { width: auto; min-width: 150px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; }
+.mt { margin-top: 12px; }
+.form-actions { display: flex; gap: 12px; margin-top: 18px; }
 .small { font-size: 12px; }
 .strong { font-weight: 600; }
 .text-danger { color: var(--danger); }

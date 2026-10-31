@@ -25,6 +25,16 @@
 - 查看作业提交情况（学生 × 题目矩阵）、每位学生的**源代码**与判题结果
 - 学情统计：题目通过率、知识点正确率、学生通过率排行、提交结果分布
 
+### 管理员
+- 管理控制台：系统账号数、题目数、班级数、作业数、提交数概览
+- **用户管理**：按角色/关键字查询学生、教师、管理员账号
+- 新增账号（可指定学生/教师/管理员角色）、编辑用户名、姓名与角色
+- 重置密码（重置为 `123456`）、**停用 / 启用**账号（停用后无法登录）
+- 删除账号（自动清理其提交记录、班级与作业，且至少保留一个管理员）
+- 查看任一账号的班级归属、提交统计与最近提交；管理员同时拥有教师端访问权
+
+> 登录页不变（仍为用户名 + 密码）；注册页只开放学生/教师，管理员账号由系统初始化或管理员创建。
+
 ### 判题核心
 - 代码在服务器**独立子进程沙箱**中运行：
   - 独立临时目录（cwd 与 sys.path 均指向该目录）
@@ -61,9 +71,10 @@ python run.py
 
 | 角色 | 用户名 | 密码 |
 | --- | --- | --- |
+| 管理员 | admin | admin123 |
+| 教师 | teacher | 123456 |
 | 学生 | student | 123456 |
 | 学生 | student2 | 123456 |
-| 教师 | teacher | 123456 |
 
 教师注册需填写注册码（默认 `teacher2024`，可用环境变量 `TEACHER_INVITE_CODE` 修改）；
 学生注册无需注册码，注册后用教师提供的班级码（`CLASS1`）加入班级。
@@ -100,22 +111,38 @@ app/
     problems.py      题库浏览、专项练习、提交记录
     homework.py      学生作业列表与作答
     teacher.py       题库管理、班级、作业、学情统计、提交查看
+    admin.py         管理员：用户（学生/教师）管理
     api.py           判题接口 / 自定义运行接口
   templates/         页面模板
   static/            CSS 与前端 JS（编辑器、判题交互）
 seed.py              演示数据初始化
 run.py               启动入口
 tests/
+  test_auth.py       认证（注册/登录/限流/权限，pytest）
+  test_judge.py      判题五态与沙箱（pytest）
+  test_api.py        判题/运行接口（pytest）
+  test_pages.py      页面可达性与角色隔离（pytest）
+  test_admin.py      管理员账号管理（pytest，11 项）
   security_test.py   安全测试（沙箱逃逸 + Web 安全，44 项）
   smoke_test.py      功能回归测试（页面 + 判题五态 + 教师流程，36 项）
+  case_test.py       按《测试用例表》逐条复现（56 项）并生成测试结果 Excel
+测试结果.xlsx        最近一次用例复现结果（与测试用例表同格式）
 ```
 
 ## 二·补、测试
 
 ```bash
+python -m pytest -q             # pytest 套件（49 项，含管理员）
 python tests/security_test.py   # 沙箱逃逸、文件越权、资源滥用、CSRF、越权、XSS
 python tests/smoke_test.py      # 业务功能回归
+python tests/case_test.py       # 用例表复现 + 生成 测试结果.xlsx
 ```
+
+`tests/case_test.py` 会读取桌面模板 `COBEBUDDY-测试用例表.xlsx` 的用例元数据，
+逐条执行 TF-001~TF-047，并追加管理员功能用例 TF-048~TF-056（登录、用户列表、
+新增/编辑/重置密码/停用/删除账号、越权访问、注册防提权），
+最终按模板列（用例编号 / 测试模块 / 用例标题 / 前置条件 / 测试步骤 / 预期结果 /
+实际结果 / 测试状态 / 缺陷编号 / 测试优先级）输出 `测试结果.xlsx`。
 
 安全测试覆盖示例：`import socket/_socket`、`del sys.modules` 绕过、`importlib` 动态导入、
 `os.system/subprocess`、读取 `win.ini`、写系统目录、`os.listdir('C:/')`、环境变量泄露、

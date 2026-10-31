@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from flask import Blueprint, render_template
+from flask import Blueprint, redirect, render_template, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func, select
 
@@ -12,6 +12,8 @@ main_bp = Blueprint("main", __name__, template_folder="../templates")
 @main_bp.route("/")
 @login_required
 def index():
+    if current_user.is_admin:
+        return redirect(url_for("admin.dashboard"))
     if current_user.is_teacher:
         return _teacher_home()
     return _student_home()

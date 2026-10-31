@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% from "macros.html" import status_badge %}
+{% block title %}用户管理{% endblock %}
+
+{% block content %}
+<section class="card">
+  <div class="card-head">
+    <h2>用户管理（学生 / 教师 / 管理员）</h2>
+    <a class="btn btn-primary btn-sm" href="{{ url_for('admin.user_new') }}">新增账号</a>
+  </div>
+
+  <form method="get" class="filters">
+    <select name="role">
+      <option value="">全部角色</option>
+      {% for value, label in roles %}
+      <option value="{{ value }}" {% if role == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <input type="text" name="q" value="{{ keyword }}" placeholder="用户名或姓名">
+    <button class="btn btn-sm btn-primary" type="submit">筛选</button>
+    <a class="btn btn-sm btn-outline" href="{{ url_for('admin.users') }}">重置</a>
+  </form>
+
+  <table class="table">
+    <thead><tr><th>ID</th><th>用户名</th><th>姓名</th><th>角色</th><th>状态</th><th>提交数</th><th>创建时间</th><th>操作</th></tr></thead>
+    <tbody>
+    {% for u in users %}
+    <tr>
+      <td>{{ u.id }}</td>
+      <td>{{ u.username }}</td>
+      <td>{{ u.name }}</td>
+      <td><span class="role-tag">{{ u.role_label }}</span></td>
+      <td>{% if u.is_active %}<span class="badge badge-success">启用</span>{% else %}<span class="badge badge-danger">停用</span>{% endif %}</td>
+      <td>{{ counts.get(u.id, 0) }}</td>
+      <td class="muted">{{ u.created_at.strftime('%Y-%m-%d') }}</td>
+      <td class="actions">
+        <a class="btn btn-sm btn-outline" href="{{ url_for('admin.user_detail', user_id=u.id) }}">详情</a>
+        <a class="btn btn-sm btn-outline" href="{{ url_for('admin.user_edit', user_id=u.id) }}">编辑</a>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="8" class="muted">没有匹配的账号。</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  {% if pagination.pages > 1 %}
+  <div class="pager">
+    {% if pagination.has_prev %}<a class="btn btn-sm btn-outline" href="{{ url_for('admin.users', page=pagination.prev_num, role=role, q=keyword) }}">上一页</a>{% endif %}
+    <span class="muted">第 {{ pagination.page }} / {{ pagination.pages }} 页</span>
+    {% if pagination.has_next %}<a class="btn btn-sm btn-outline" href="{{ url_for('admin.users', page=pagination.next_num, role=role, q=keyword) }}">下一页</a>{% endif %}
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

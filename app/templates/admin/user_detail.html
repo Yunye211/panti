@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% from "macros.html" import status_badge %}
+{% block title %}账号详情 - {{ user.username }}{% endblock %}
+
+{% block content %}
+<section class="card">
+  <div class="card-head">
+    <h2>{{ user.name }}（{{ user.username }}）</h2>
+    <div class="actions">
+      <a class="btn btn-sm btn-outline" href="{{ url_for('admin.user_edit', user_id=user.id) }}">编辑</a>
+      {% if user.id != current_user.id %}
+      <form method="post" action="{{ url_for('admin.user_toggle_active', user_id=user.id) }}" onsubmit="return confirm('确定{{ '停用' if user.is_active else '启用' }}该账号？')">
+        {{ csrf_field() }}
+        <button class="btn btn-sm btn-outline" type="submit">{{ '停用' if user.is_active else '启用' }}</button>
+      </form>
+      <form method="post" action="{{ url_for('admin.user_reset_password', user_id=user.id) }}" onsubmit="return confirm('确定将该账号密码重置为 123456？')">
+        {{ csrf_field() }}
+        <button class="btn btn-sm btn-outline" type="submit">重置密码</button>
+      </form>
+      <form method="post" action="{{ url_for('admin.user_delete', user_id=user.id) }}" onsubmit="return confirm('删除账号会同时删除其提交记录与所带班级，确定继续？')">
+        {{ csrf_field() }}
+        <button class="btn btn-sm btn-danger" type="submit">删除</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <table class="table">
+    <tbody>
+      <tr><th>角色</th><td><span class="role-tag">{{ user.role_label }}</span></td></tr>
+      <tr><th>状态</th><td>{% if user.is_active %}<span class="badge badge-success">启用</span>{% else %}<span class="badge badge-danger">停用</span>{% endif %}</td></tr>
+      <tr><th>提交总数</th><td>{{ total }}</td></tr>
+      <tr><th>通过数 / 正确率</th><td>{{ accepted }} / {{ rate }}%</td></tr>
+      {% if user.role == 'teacher' %}<tr><th>所带班级</th><td>{% for room in taught_rooms %}<span class="chip">{{ room.name }}（{{ room.join_code }}）</span>{% else %}<span class="muted">无</span>{% endfor %}</td></tr>
+      <tr><th>录入题目</th><td>{{ created_problems }}</td></tr>{% endif %}
+      {% if user.role == 'student' %}<tr><th>已加入班级</th><td>{% for room in joined_classrooms %}<span class="chip">{{ room.name }}</span>{% else %}<span class="muted">无</span>{% endfor %}</td></tr>{% endif %}
+      <tr><th>创建时间</th><td>{{ user.created_at.strftime('%Y-%m-%d %H:%M') }}</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="card">
+  <div class="card-head"><h2>最近提交</h2></div>
+  <table class="table">
+    <thead><tr><th>ID</th><th>题目</th><th>结果</th><th>得分</th><th>时间</th></tr></thead>
+    <tbody>
+    {% for s in submissions %}
+    <tr>
+      <td><a href="{{ url_for('problems.submission_detail', submission_id=s.id) }}">{{ s.id }}</a></td>
+      <td>{{ s.problem.title }}</td>
+      <td>{{ status_badge(s.status, s.status_label) }}</td>
+      <td>{{ s.score }}</td>
+      <td class="muted">{{ s.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="muted">暂无提交记录。</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

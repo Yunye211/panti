@@ -205,6 +205,9 @@ def submission_detail(submission_id):
     sub = db.session.get(Submission, submission_id) or abort(404)
     if sub.user_id == current_user.id:
         return render_template("problems/submission_detail.html", sub=sub)
+    # 管理员可查看全部提交（管理需要）
+    if current_user.is_admin:
+        return render_template("problems/submission_detail.html", sub=sub)
     # 教师只能查看自己班级学生的提交，避免跨班越权查看源代码
     if current_user.is_teacher and _teacher_can_view(current_user, sub):
         return render_template("problems/submission_detail.html", sub=sub)

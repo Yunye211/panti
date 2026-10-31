@@ -115,6 +115,9 @@ def login():
 
         user = db.session.scalar(select(User).where(User.username == username))
         if user and user.check_password(password):
+            if not getattr(user, "is_active", True):
+                flash("该账号已被停用，请联系管理员。", "danger")
+                return render_template("auth/login.html")
             _clear_fail(key)
             login_user(user)
             flash("欢迎回来，%s！" % user.name, "success")

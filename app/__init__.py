@@ -2,7 +2,19 @@ import hmac
 import os
 import secrets
 
-from flask import Flask, abort, jsonify, request, render_template, session
+from flask import (
+    Flask,
+    abort,
+    current_app,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
+from flask_login import current_user, logout_user
 from markupsafe import Markup
 
 from .extensions import db, login_manager
@@ -66,10 +78,21 @@ def create_app(config=None):
         return {"csrf_token": _csrf_token, "csrf_field": csrf_field}
 
     @app.before_request
+    def _kick_disabled_users():
+        """被管理员停用的账号：已有登录会话立即失效，并退回登录页。"""
+        if current_user.is_authenticated and getattr(current_user, "is_active", True) is False:
+            logout_user()
+            flash("该账号已被管理员停用，请联系管理员。", "danger")
+            return redirect(url_for("auth.login"))
+
+    @app.before_request
     def _csrf_protect():
         if request.method not in ("POST", "PUT", "PATCH", "DELETE"):
             return None
         if request.endpoint in CSRF_EXEMPT_ENDPOINTS:
+            return None
+        # 未登录的接口调用先交给蓝图返回 401，避免被 CSRF 分支抢先返回 400
+        if request.path.startswith("/api/") and not current_user.is_authenticated:
             return None
         expected = session.get("csrf_token")
         supplied = request.form.get("csrf_token") or request.headers.get("X-CSRF-Token")
@@ -113,6 +136,7 @@ def create_app(config=None):
         )
         return resp
 
+    from .views.admin import admin_bp
     from .views.api import api_bp
     from .views.auth import auth_bp
     from .views.homework import homework_bp
@@ -120,10 +144,29 @@ def create_app(config=None):
     from .views.problems import problems_bp
     from .views.teacher import teacher_bp
 
-    for bp in (auth_bp, main_bp, problems_bp, homework_bp, teacher_bp, api_bp):
+    for bp in (auth_bp, main_bp, problems_bp, homework_bp, teacher_bp, admin_bp, api_bp):
         app.register_blueprint(bp)
 
     with app.app_context():
         db.create_all()
+        _ensure_schema()
 
     return app
+
+
+def _ensure_schema():
+    """轻量迁移：为已存在的旧库补充新增列（兼容 SQLite / PostgreSQL，无需 Alembic）。"""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(db.engine)
+    if not inspector.has_table("users"):
+        return
+    columns = {c["name"] for c in inspector.get_columns("users")}
+    if "is_active" in columns:
+        return
+    default = "TRUE" if db.engine.dialect.name == "postgresql" else "1"
+    try:
+        db.session.execute(text("ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT %s" % default))
+        db.session.commit()
+    except Exception:  # 多 worker 并发启动时可能已被另一个进程加过
+        db.session.rollback()

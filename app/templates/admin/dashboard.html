@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}管理员控制台{% endblock %}
+
+{% block content %}
+<section class="card">
+  <div class="card-head"><h2>系统概览</h2></div>
+  <div class="stat-grid">
+    <div class="stat-box"><span class="stat-num">{{ stats.student }}</span><span class="stat-label">学生</span></div>
+    <div class="stat-box"><span class="stat-num">{{ stats.teacher }}</span><span class="stat-label">教师</span></div>
+    <div class="stat-box"><span class="stat-num">{{ stats.admin }}</span><span class="stat-label">管理员</span></div>
+    <div class="stat-box"><span class="stat-num">{{ stats.problems }}</span><span class="stat-label">题目</span></div>
+    <div class="stat-box"><span class="stat-num">{{ stats.classrooms }}</span><span class="stat-label">班级</span></div>
+    <div class="stat-box"><span class="stat-num">{{ stats.homeworks }}</span><span class="stat-label">作业</span></div>
+    <div class="stat-box"><span class="stat-num">{{ stats.submissions }}</span><span class="stat-label">提交</span></div>
+  </div>
+  <p class="mt"><a class="btn btn-primary btn-sm" href="{{ url_for('admin.users') }}">用户管理</a></p>
+</section>
+
+{% if weak_password %}
+<section class="card">
+  <div class="alert alert-warning">
+    默认管理员账号 <code>admin / admin123</code> 仍在使用初始密码，公网环境请尽快修改：右上角“{{ current_user.name }}”→ 个人资料 → 修改密码。
+  </div>
+</section>
+{% endif %}
+
+<section class="card">
+  <div class="card-head"><h2>最近新增账号</h2></div>
+  <table class="table">
+    <thead><tr><th>用户名</th><th>姓名</th><th>角色</th><th>创建时间</th><th>操作</th></tr></thead>
+    <tbody>
+    {% for u in recent_users %}
+    <tr>
+      <td>{{ u.username }}</td>
+      <td>{{ u.name }}</td>
+      <td><span class="role-tag">{{ u.role_label }}</span></td>
+      <td class="muted">{{ u.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+      <td class="actions"><a class="btn btn-sm btn-outline" href="{{ url_for('admin.user_detail', user_id=u.id) }}">详情</a></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="muted">暂无账号。</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="card">
+  <div class="card-head"><h2>最近提交</h2></div>
+  <table class="table">
+    <thead><tr><th>ID</th><th>学生</th><th>题目</th><th>结果</th><th>时间</th></tr></thead>
+    <tbody>
+    {% for s in recent_submissions %}
+    <tr>
+      <td>{{ s.id }}</td>
+      <td>{{ s.author.name }}</td>
+      <td>{{ s.problem.title }}</td>
+      <td>{% from "macros.html" import status_badge %}{{ status_badge(s.status, s.status_label) }}</td>
+      <td class="muted">{{ s.created_at.strftime('%m-%d %H:%M') }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="muted">暂无提交。</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

@@ -11,6 +11,13 @@ from ..sandbox import run_code
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
 
+@api_bp.before_request
+def _require_login():
+    """接口未登录返回 401，而不是重定向到登录页。"""
+    if not current_user.is_authenticated:
+        return jsonify({"error": "请先登录后再提交代码。"}), 401
+
+
 @api_bp.route("/judge", methods=["POST"])
 @login_required
 def api_judge():

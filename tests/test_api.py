@@ -7,7 +7,9 @@ GOOD_CODE = "a, b = map(int, input().split())\nprint(a + b)"
 
 def test_api_judge_requires_login(client):
     resp = post_json(client, "/api/judge", {"problem_id": 1, "code": GOOD_CODE})
-    assert resp.status_code == 302  # 未登录被重定向到登录页
+    # 接口未登录返回 401 JSON（而非重定向到登录页 HTML），便于前端统一处理
+    assert resp.status_code == 401
+    assert "请先登录" in resp.get_json().get("error", "")
 
 
 def test_api_judge_ac_saves_submission(client, app):
