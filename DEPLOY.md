@@ -112,9 +112,17 @@ docker compose logs -f          # 查看实时日志
 docker compose ps               # 容器状态
 docker compose down             # 停止
 docker compose up -d --build    # 更新代码后重建
-# 更新流程：git pull && docker compose up -d --build
 docker compose exec cobebuddy python /tmp/verify.py   # 进容器调试
 ```
+
+### 一键更新（服务器上执行）
+
+```bash
+cd /root/panti && bash scripts/deploy_update.sh
+```
+
+脚本依次完成：拉取最新代码 → 重建容器 → 等待服务就绪 → 幂等初始化数据与管理员账号 →
+自测管理员登录、`/admin/`、`/admin/users` 三个关键请求并打印状态码。
 
 ## 七、数据库
 
