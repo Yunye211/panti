@@ -13,6 +13,7 @@ from flask import (
 )
 from flask_login import current_user, login_required
 from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
 
 from .. import db
 from ..decorators import student_required
@@ -41,7 +42,12 @@ def index():
     if tag_id:
         stmt = stmt.where(Problem.tags.any(KnowledgePoint.id == tag_id))
 
-    pagination = db.paginate(stmt.order_by(Problem.id.asc()), page=page, per_page=12, error_out=False)
+    pagination = db.paginate(
+        stmt.order_by(Problem.id.asc()).options(selectinload(Problem.tags)),
+        page=page,
+        per_page=12,
+        error_out=False,
+    )
 
     # 学生每题的通过状态
     solved_ids = set()

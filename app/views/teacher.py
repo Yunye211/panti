@@ -5,6 +5,7 @@ from datetime import datetime
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
 
 from .. import db
 from ..decorators import teacher_required
@@ -98,7 +99,11 @@ def problems():
     if only_mine:
         stmt = stmt.where(Problem.author_id == current_user.id)
 
-    problems = db.session.scalars(stmt.order_by(Problem.id.desc())).all()
+    problems = db.session.scalars(
+        stmt.order_by(Problem.id.desc()).options(
+            selectinload(Problem.tags), selectinload(Problem.test_cases)
+        )
+    ).all()
     return render_template(
         "teacher/problems.html",
         problems=problems,
@@ -343,6 +348,10 @@ def homeworks():
     if room_ids:
         hws = db.session.scalars(
             select(Homework).where(Homework.classroom_id.in_(room_ids)).order_by(Homework.created_at.desc())
+            .options(
+                selectinload(Homework.classroom).selectinload(Classroom.students),
+                selectinload(Homework.problems),
+            )
         ).all()
         for hw in hws:
             submitted = db.session.scalar(
@@ -353,7 +362,9 @@ def homeworks():
         "teacher/homeworks.html",
         items=items,
         rooms=rooms,
-        problems=db.session.scalars(select(Problem).order_by(Problem.id.desc())).all(),
+        problems=db.session.scalars(
+            select(Problem).order_by(Problem.id.desc()).options(selectinload(Problem.tags))
+        ).all(),
         now=datetime.now(),
     )
 

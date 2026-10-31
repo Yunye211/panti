@@ -21,6 +21,7 @@ def create_app(config=None):
         SQLALCHEMY_DATABASE_URI=os.environ.get("DATABASE_URL")
         or "sqlite:///" + os.path.join(INSTANCE_DIR, "judge.db"),
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
+        SQLALCHEMY_ENGINE_OPTIONS={"pool_pre_ping": True},
         JUDGE_TIME_LIMIT=int(os.environ.get("JUDGE_TIME_LIMIT", "2")),
         JUDGE_TOTAL_TIME=int(os.environ.get("JUDGE_TOTAL_TIME", "15")),
         JUDGE_MEMORY_MB=int(os.environ.get("JUDGE_MEMORY_MB", "256")),

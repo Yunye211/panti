@@ -19,5 +19,5 @@ USER judge
 
 EXPOSE 5000
 
-# gunicorn 生产服务器；--timeout 放宽以便长判题队列
-CMD ["gunicorn", "-w", "2", "-b", "0.0.0.0:5000", "--timeout", "120", "run:app"]
+# gunicorn 生产服务器；--threads 提升并发（应对远端数据库往返延迟）；--timeout 放宽以便长判题队列
+CMD ["gunicorn", "-w", "2", "--threads", "8", "-b", "0.0.0.0:5000", "--timeout", "120", "run:app"]
