@@ -17,6 +17,7 @@ USERNAME_RE = re.compile(r"^[A-Za-z0-9_.-]{3,32}$")
 _LOGIN_FAILS = {}
 MAX_FAILS = 5
 LOCK_SECONDS = 60
+FAIL_WINDOW_SECONDS = 600  # 连续失败计数窗口：窗口内累计达到 MAX_FAILS 才锁定
 
 
 def _fail_key(username):
@@ -27,22 +28,29 @@ def _locked(key):
     info = _LOGIN_FAILS.get(key)
     if not info:
         return False
-    if time.time() < info["until"]:
+    until = info["until"]
+    if until and time.time() < until:
         return True
-    _LOGIN_FAILS.pop(key, None)
+    if until:  # 锁定已过期：清理记录，重新开始计数
+        _LOGIN_FAILS.pop(key, None)
     return False
 
 
 def _register_fail(key):
-    info = _LOGIN_FAILS.get(key)
     now = time.time()
-    if not info or now >= info["until"]:
-        info = {"count": 0, "until": now + LOCK_SECONDS}
+    info = _LOGIN_FAILS.get(key)
+    # 无记录或计数窗口已过：重新开始计数；锁定生效期间不再额外计数
+    if not info or now - info["last"] > FAIL_WINDOW_SECONDS:
+        info = {"count": 0, "until": 0, "last": now}
         _LOGIN_FAILS[key] = info
-    info["count"] += 1
-    if info["count"] >= MAX_FAILS:
-        info["until"] = now + LOCK_SECONDS
-    for k in [k for k, v in _LOGIN_FAILS.items() if v["until"] < now - 600]:
+    if not info["until"]:
+        info["count"] += 1
+        info["last"] = now
+        if info["count"] >= MAX_FAILS:
+            info["until"] = now + LOCK_SECONDS
+    # 清理：锁定过期超过窗口、或窗口内无失败活动的记录
+    for k in [k for k, v in _LOGIN_FAILS.items()
+              if now - max(v["until"], v["last"]) > FAIL_WINDOW_SECONDS]:
         _LOGIN_FAILS.pop(k, None)
 
 

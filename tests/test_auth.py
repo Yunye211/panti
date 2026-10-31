@@ -68,6 +68,15 @@ def test_login_lockout_after_5_fails(client):
     assert "登录失败次数过多" in resp.get_data(as_text=True)
 
 
+def test_login_single_fail_then_correct_password_succeeds(client):
+    """BUG-002 回归：单次密码错误不锁定，正确密码仍可正常登录。"""
+    resp = post_form(client, "/auth/login", {"username": "student", "password": "wrong"})
+    assert "用户名或密码错误" in resp.get_data(as_text=True)
+    resp = post_form(client, "/auth/login", {"username": "student", "password": "123456"})
+    assert resp.status_code == 302
+    assert resp.headers["Location"].endswith("/")
+
+
 def test_logout(client):
     login(client)
     resp = client.get("/auth/logout")
