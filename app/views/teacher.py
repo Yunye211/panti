@@ -162,12 +162,13 @@ def problem_edit(problem_id):
         problem.starter_code = request.form.get("starter_code") or ""
         problem.reference_code = request.form.get("reference_code") or ""
         _sync_tags(problem, request.form.getlist("tags"), request.form.get("new_tags", ""))
-        _sync_test_cases(
-            problem,
-            request.form.getlist("tc_input"),
-            request.form.getlist("tc_output"),
-            set(request.form.getlist("tc_sample")),
-        )
+        # 仅当表单提交了用例字段时才同步测试用例；未提交则保留既有用例，
+        # 避免只改标题/描述等字段时清空题目原有测试用例（数据丢失缺陷 BUG-001 回归）
+        tc_inputs = request.form.getlist("tc_input")
+        tc_outputs = request.form.getlist("tc_output")
+        tc_samples = set(request.form.getlist("tc_sample"))
+        if tc_inputs or tc_outputs or tc_samples:
+            _sync_test_cases(problem, tc_inputs, tc_outputs, tc_samples)
         db.session.commit()
         flash("题目已保存。", "success")
         return redirect(url_for("teacher.problem_edit", problem_id=problem.id))
