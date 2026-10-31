@@ -2,7 +2,7 @@ import hmac
 import os
 import secrets
 
-from flask import Flask, abort, jsonify, request, session
+from flask import Flask, abort, jsonify, request, render_template, session
 from markupsafe import Markup
 
 from .extensions import db, login_manager
@@ -28,6 +28,10 @@ def create_app(config=None):
         TEACHER_INVITE_CODE=os.environ.get("TEACHER_INVITE_CODE", "teacher2024"),
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
+        # 静态资源浏览器缓存 1 小时，减少重复加载（本地化后的 CodeMirror 等）
+        SEND_FILE_MAX_AGE_DEFAULT=3600,
+        # 请求体上限 1MB，防止超大报文（代码上限 20000 字符，足够）
+        MAX_CONTENT_LENGTH=1 * 1024 * 1024,
     )
     if config:
         app.config.update(config)
@@ -83,6 +87,31 @@ def create_app(config=None):
             % getattr(err, "description", "请求有误"),
             400,
         )
+
+    @app.errorhandler(403)
+    def _forbidden(err):
+        return render_template("errors/403.html"), 403
+
+    @app.errorhandler(404)
+    def _not_found(err):
+        return render_template("errors/404.html"), 404
+
+    @app.errorhandler(500)
+    def _server_error(err):
+        # 记录完整异常到容器日志，页面上不暴露任何堆栈细节
+        current_app.logger.exception("Internal Server Error: %s", err)
+        return render_template("errors/500.html"), 500
+
+    # 统一的安全响应头（防 MIME 嗅探 / 点击劫持 / 敏感来源泄露）
+    @app.after_request
+    def _security_headers(resp):
+        resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+        resp.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+        resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        resp.headers.setdefault(
+            "Permissions-Policy", "camera=(), microphone=(), geolocation=()"
+        )
+        return resp
 
     from .views.api import api_bp
     from .views.auth import auth_bp
