@@ -166,6 +166,7 @@ class Homework(db.Model):
     classroom = db.relationship("Classroom", backref="homeworks")
     problems = db.relationship("Problem", secondary=homework_problems, backref="homeworks")
 
+    @property
     def is_closed(self):
         return datetime.now() > self.due_at
 

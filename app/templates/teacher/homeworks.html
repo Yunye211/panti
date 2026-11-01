@@ -54,7 +54,7 @@
       <td>{{ item.homework.problems|length }}</td>
       <td>{{ item.homework.due_at.strftime('%Y-%m-%d %H:%M') }}</td>
       <td>{{ item.submitted }}/{{ item.members }}</td>
-      <td>{% if item.homework.is_closed() %}<span class="badge badge-muted">已截止</span>{% else %}<span class="badge badge-success">进行中</span>{% endif %}</td>
+      <td>{% if item.homework.is_closed %}<span class="badge badge-muted">已截止</span>{% else %}<span class="badge badge-success">进行中</span>{% endif %}</td>
       <td class="actions">
         <a class="btn btn-sm btn-outline" href="{{ url_for('teacher.homework_detail', homework_id=item.homework.id) }}">查看</a>
         <form method="post" action="{{ url_for('teacher.homework_delete', homework_id=item.homework.id) }}" onsubmit="return confirm('确定删除该作业？')">

@@ -40,8 +40,8 @@
         <tr>
           <td><a href="{{ url_for('homework.detail', homework_id=hw.id) }}">{{ hw.title }}</a></td>
           <td class="muted">{{ room.name }}</td>
-          <td class="{% if hw.is_closed() %}text-danger{% endif %}">{{ hw.due_at.strftime('%m-%d %H:%M') }}</td>
-          <td class="muted">{% if hw.is_closed() %}已截止{% else %}进行中{% endif %}</td>
+          <td class="{% if hw.is_closed %}text-danger{% endif %}">{{ hw.due_at.strftime('%m-%d %H:%M') }}</td>
+          <td class="muted">{% if hw.is_closed %}已截止{% else %}进行中{% endif %}</td>
         </tr>
       {% endfor %}
       </tbody>

@@ -79,8 +79,9 @@ def users():
     if role in dict(ROLES):
         stmt = stmt.where(User.role == role)
     if keyword:
-        like = "%%%s%%" % keyword
-        stmt = stmt.where(User.username.like(like) | User.display_name.like(like))
+        escaped = keyword.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        like = "%%%s%%" % escaped
+        stmt = stmt.where(User.username.like(like, escape="\\") | User.display_name.like(like, escape="\\"))
 
     pagination = db.paginate(
         stmt.order_by(User.role, User.id.desc()), page=page, per_page=20, error_out=False

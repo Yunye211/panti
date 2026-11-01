@@ -46,7 +46,7 @@ def index():
                     "classroom": room,
                     "done": done,
                     "total": len(hw.problems),
-                    "closed": hw.is_closed(),
+                    "closed": hw.is_closed,
                 }
             )
     items.sort(key=lambda x: x["homework"].due_at, reverse=True)
