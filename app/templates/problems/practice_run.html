@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% from "macros.html" import difficulty_badge, tag_list, code_editor, result_panel %}
 {% block title %}专项练习 {{ index }}/{{ total }}{% endblock %}
 
@@ -22,23 +22,41 @@
       <h2>{{ problem.title }}</h2>
       <div>{{ difficulty_badge(problem) }}</div>
     </div>
-    <div class="chips">{{ tag_list(problem) }}</div>
+    <div class="chips">
+      <span class="chip">{{ problem.type_label }}</span>
+      <span class="chip">{{ problem.subject_label }}</span>
+      <span class="chip">{{ problem.stage_label }}</span>
+      {{ tag_list(problem) }}
+    </div>
     <div class="markdown">{{ problem.description|e|replace('\n', '<br>')|safe }}</div>
+
+    {% if problem.type == 'code' %}
     <h3 class="sub-title">样例</h3>
     {% for tc in samples %}
     <div class="sample">
       <div><strong>输入 {{ loop.index }}</strong><pre>{{ tc.input_data }}</pre></div>
       <div><strong>输出 {{ loop.index }}</strong><pre>{{ tc.expected_output }}</pre></div>
     </div>
-    {% else %}
-    <p class="muted">该题暂无公开样例。</p>
     {% endfor %}
+    {% else %}
+      {% set opts = problem.parsed_options %}
+      {% if opts and problem.type == 'choice' %}
+      <h3 class="sub-title">选项</h3>
+      <ul class="list">
+        {% for opt in opts %}
+        <li class="muted">{{ chr(65 + loop.index0) }}. {{ opt }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    {% endif %}
   </div>
 
   <div class="editor-pane">
+    {% if problem.type == 'code' %}
     {{ code_editor(code) }}
     <div class="editor-actions">
       <button class="btn btn-primary" id="btn-submit"
+              data-type="code"
               data-problem="{{ problem.id }}"
               data-source="practice"
               data-save="1">提交判题</button>
@@ -50,6 +68,72 @@
       <button class="btn btn-outline btn-sm" id="btn-run">运行</button>
       <pre class="output" id="run-output"></pre>
     </div>
+
+    {% elif problem.type == 'choice' %}
+    <div class="card objective-card">
+      <h3>请选择答案{% if problem.parsed_standard_answer and problem.parsed_standard_answer.get('multi') %}（多选）{% else %}（单选）{% endif %}</h3>
+      <div class="choice-lines">
+        {% for opt in problem.parsed_options %}
+        <label class="check-block">
+          <input type="{% if problem.parsed_standard_answer and problem.parsed_standard_answer.get('multi') %}checkbox{% else %}radio{% endif %}"
+                 name="opt_pick" value="{{ chr(65 + loop.index0) }}">
+          <span class="opt-label">{{ chr(65 + loop.index0) }}. {{ opt }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="editor-actions">
+      <button class="btn btn-primary" id="btn-submit"
+              data-type="choice"
+              data-problem="{{ problem.id }}"
+              data-source="practice"
+              data-save="1">提交判题</button>
+    </div>
+
+    {% elif problem.type == 'judge' %}
+    <div class="card objective-card">
+      <h3>请判断对错</h3>
+      <div class="judge-lines">
+        <label class="check-block">
+          <input type="radio" name="judge_pick" value="true">
+          <span>✓ 正确</span>
+        </label>
+        <label class="check-block">
+          <input type="radio" name="judge_pick" value="false">
+          <span>✗ 错误</span>
+        </label>
+      </div>
+    </div>
+    <div class="editor-actions">
+      <button class="btn btn-primary" id="btn-submit"
+              data-type="judge"
+              data-problem="{{ problem.id }}"
+              data-source="practice"
+              data-save="1">提交判题</button>
+    </div>
+
+    {% elif problem.type == 'fill' %}
+    {% set blanks = problem.parsed_standard_answer if problem.parsed_standard_answer and problem.parsed_standard_answer is sequence else [] %}
+    <div class="card objective-card">
+      <h3>请填写答案（共 {{ blanks|length }} 空）</h3>
+      <div class="fillblank-lines">
+        {% for b in blanks %}
+        <div class="blank-line">
+          <span class="blank-num">{{ loop.index }}.</span>
+          <input type="text" name="blank_input" placeholder="请输入第 {{ loop.index }} 空答案">
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="editor-actions">
+      <button class="btn btn-primary" id="btn-submit"
+              data-type="fill"
+              data-problem="{{ problem.id }}"
+              data-source="practice"
+              data-save="1">提交判题</button>
+    </div>
+    {% endif %}
+
     {{ result_panel() }}
   </div>
 </section>

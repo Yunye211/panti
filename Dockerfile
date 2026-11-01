@@ -1,4 +1,4 @@
-# COBEBUDDY 在线判题平台 —— Docker 镜像
+# 基于Python的中小学课程在线测评系统设计与实现（工程代号 COBEBUDDY）—— Docker 镜像
 FROM python:3.12-slim
 
 WORKDIR /app

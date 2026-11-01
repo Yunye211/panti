@@ -1,3 +1,4 @@
+﻿import json as _json
 import random
 import string
 from datetime import datetime
@@ -8,7 +9,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from .. import db
-from ..decorators import teacher_required
+from ..constants import QUESTION_TYPES, STAGES, SUBJECTS
+from ..decorators import ensure_owner, like, teacher_required
 from ..models import (
     DIFFICULTIES,
     STATUS_LABELS,
@@ -77,6 +79,51 @@ def _sync_test_cases(problem, inputs, outputs, sample_flags):
         db.session.add(tc)
 
 
+def _sync_objective_fields(problem, form):
+    qtype = (form.get("type") or "code").strip()
+    if qtype not in QUESTION_TYPES:
+        qtype = "code"
+    subject = (form.get("subject") or "信息技术").strip()
+    if subject not in SUBJECTS:
+        subject = "信息技术"
+    stage = (form.get("stage") or "初中").strip()
+    if stage not in STAGES:
+        stage = "初中"
+
+    problem.type = qtype
+    problem.subject = subject
+    problem.stage = stage
+
+    if qtype == "code":
+        problem.options = None
+        problem.standard_answer = None
+        return
+
+    if qtype == "choice":
+        opt_texts = [s.strip() for s in form.getlist("option_content") if s.strip()]
+        options = opt_texts[:8]
+        if len(options) < 2:
+            options = options + [""] * (2 - len(options))
+        correct_labels = [s.strip().upper() for s in form.getlist("option_correct") if s.strip()]
+        is_multi = len(correct_labels) > 1
+        problem.options = _json.dumps(options, ensure_ascii=False)
+        problem.standard_answer = _json.dumps(
+            {"multi": is_multi, "correct": correct_labels if correct_labels else ["A"]},
+            ensure_ascii=False,
+        )
+    elif qtype == "judge":
+        correct = (form.get("judge_correct") or "T").strip().upper()
+        problem.options = None
+        problem.standard_answer = _json.dumps(
+            {"multi": False, "correct": [correct]},
+            ensure_ascii=False,
+        )
+    elif qtype == "fill":
+        blanks = [s.strip() for s in form.getlist("blank_answer")]
+        problem.options = None
+        problem.standard_answer = _json.dumps(blanks, ensure_ascii=False)
+
+
 # ----------------------------- 题库管理 -----------------------------
 
 
@@ -86,14 +133,24 @@ def _sync_test_cases(problem, inputs, outputs, sample_flags):
 def problems():
     keyword = (request.args.get("q") or "").strip()
     difficulty = (request.args.get("difficulty") or "").strip()
+    qtype = (request.args.get("type") or "").strip()
+    subject = (request.args.get("subject") or "").strip()
+    stage = (request.args.get("stage") or "").strip()
     tag_id = request.args.get("tag", type=int)
     only_mine = request.args.get("mine") == "1"
 
     stmt = select(Problem)
     if keyword:
-        stmt = stmt.where(Problem.title.like("%%%s%%" % keyword))
+        pat, esc = like(keyword)
+        stmt = stmt.where(Problem.title.like(pat, escape=esc))
     if difficulty in DIFFICULTIES:
         stmt = stmt.where(Problem.difficulty == difficulty)
+    if qtype in QUESTION_TYPES:
+        stmt = stmt.where(Problem.type == qtype)
+    if subject in SUBJECTS:
+        stmt = stmt.where(Problem.subject == subject)
+    if stage in STAGES:
+        stmt = stmt.where(Problem.stage == stage)
     if tag_id:
         stmt = stmt.where(Problem.tags.any(KnowledgePoint.id == tag_id))
     if only_mine:
@@ -109,8 +166,14 @@ def problems():
         problems=problems,
         tags=db.session.scalars(select(KnowledgePoint).order_by(KnowledgePoint.name)).all(),
         difficulties=DIFFICULTIES,
+        question_types=QUESTION_TYPES,
+        subjects=SUBJECTS,
+        stages=STAGES,
         keyword=keyword,
         difficulty=difficulty,
+        type=qtype,
+        subject=subject,
+        stage=stage,
         tag_id=tag_id,
         only_mine=only_mine,
     )
@@ -124,7 +187,9 @@ def problem_new():
         title = (request.form.get("title") or "").strip()
         if not title:
             flash("题目标题不能为空。", "danger")
-            return render_template("teacher/problem_form.html", problem=None, tags=_all_tags(), difficulties=DIFFICULTIES)
+            return render_template("teacher/problem_form.html", problem=None,
+                                   tags=_all_tags(), difficulties=DIFFICULTIES,
+                                   question_types=QUESTION_TYPES, subjects=SUBJECTS, stages=STAGES)
 
         problem = Problem(
             title=title,
@@ -136,18 +201,22 @@ def problem_new():
         )
         db.session.add(problem)
         db.session.flush()
+        _sync_objective_fields(problem, request.form)
         _sync_tags(problem, request.form.getlist("tags"), request.form.get("new_tags", ""))
-        _sync_test_cases(
-            problem,
-            request.form.getlist("tc_input"),
-            request.form.getlist("tc_output"),
-            set(request.form.getlist("tc_sample")),
-        )
+        if problem.type == "code":
+            _sync_test_cases(
+                problem,
+                request.form.getlist("tc_input"),
+                request.form.getlist("tc_output"),
+                set(request.form.getlist("tc_sample")),
+            )
         db.session.commit()
         flash("题目已创建。", "success")
         return redirect(url_for("teacher.problem_edit", problem_id=problem.id))
 
-    return render_template("teacher/problem_form.html", problem=None, tags=_all_tags(), difficulties=DIFFICULTIES)
+    return render_template("teacher/problem_form.html", problem=None,
+                           tags=_all_tags(), difficulties=DIFFICULTIES,
+                           question_types=QUESTION_TYPES, subjects=SUBJECTS, stages=STAGES)
 
 
 @teacher_bp.route("/problems/<int:problem_id>/edit", methods=["GET", "POST"])
@@ -161,19 +230,21 @@ def problem_edit(problem_id):
         problem.difficulty = request.form.get("difficulty") or "easy"
         problem.starter_code = request.form.get("starter_code") or ""
         problem.reference_code = request.form.get("reference_code") or ""
+        _sync_objective_fields(problem, request.form)
         _sync_tags(problem, request.form.getlist("tags"), request.form.get("new_tags", ""))
-        # 仅当表单提交了用例字段时才同步测试用例；未提交则保留既有用例，
-        # 避免只改标题/描述等字段时清空题目原有测试用例（数据丢失缺陷 BUG-001 回归）
-        tc_inputs = request.form.getlist("tc_input")
-        tc_outputs = request.form.getlist("tc_output")
-        tc_samples = set(request.form.getlist("tc_sample"))
-        if tc_inputs or tc_outputs or tc_samples:
-            _sync_test_cases(problem, tc_inputs, tc_outputs, tc_samples)
+        if problem.type == "code":
+            tc_inputs = request.form.getlist("tc_input")
+            tc_outputs = request.form.getlist("tc_output")
+            tc_samples = set(request.form.getlist("tc_sample"))
+            if tc_inputs or tc_outputs or tc_samples:
+                _sync_test_cases(problem, tc_inputs, tc_outputs, tc_samples)
         db.session.commit()
         flash("题目已保存。", "success")
         return redirect(url_for("teacher.problem_edit", problem_id=problem.id))
 
-    return render_template("teacher/problem_form.html", problem=problem, tags=_all_tags(), difficulties=DIFFICULTIES)
+    return render_template("teacher/problem_form.html", problem=problem,
+                           tags=_all_tags(), difficulties=DIFFICULTIES,
+                           question_types=QUESTION_TYPES, subjects=SUBJECTS, stages=STAGES)
 
 
 @teacher_bp.route("/problems/<int:problem_id>/delete", methods=["POST"])
@@ -184,10 +255,7 @@ def problem_delete(problem_id):
     if problem.author_id != current_user.id:
         flash("只能删除自己创建的题目。", "danger")
         return redirect(url_for("teacher.problems"))
-    Submission.query.filter_by(problem_id=problem.id).delete()
-    db.session.execute(
-        homework_problems.delete().where(homework_problems.c.problem_id == problem.id)
-    )
+    problem.purge()
     db.session.delete(problem)
     db.session.commit()
     flash("题目已删除。", "info")
@@ -241,17 +309,8 @@ def classes():
 @teacher_required
 def class_delete(room_id):
     room = db.session.get(Classroom, room_id) or abort(404)
-    if room.teacher_id != current_user.id:
-        abort(403)
-    db.session.execute(
-        ClassroomStudent.__table__.delete().where(ClassroomStudent.classroom_id == room.id)
-    )
-    for hw in list(room.homeworks):
-        Submission.query.filter_by(homework_id=hw.id).delete()
-        db.session.execute(
-            homework_problems.delete().where(homework_problems.c.homework_id == hw.id)
-        )
-        db.session.delete(hw)
+    ensure_owner(room)
+    room.purge()
     db.session.delete(room)
     db.session.commit()
     flash("班级已删除。", "info")
@@ -263,8 +322,7 @@ def class_delete(room_id):
 @teacher_required
 def class_remove_student(room_id, student_id):
     room = db.session.get(Classroom, room_id) or abort(404)
-    if room.teacher_id != current_user.id:
-        abort(403)
+    ensure_owner(room)
     student = db.session.get(User, student_id) or abort(404)
     if student in room.students:
         room.students.remove(student)
@@ -283,18 +341,27 @@ def class_remove_student(room_id, student_id):
 @teacher_required
 def class_detail(room_id):
     room = db.session.get(Classroom, room_id) or abort(404)
-    if room.teacher_id != current_user.id:
-        abort(403)
+    ensure_owner(room)
     stats = []
+    student_ids = [s.id for s in room.students]
+    if student_ids:
+        total_map = dict(
+            db.session.execute(
+                select(Submission.user_id, func.count(Submission.id))
+                .where(Submission.user_id.in_(student_ids))
+                .group_by(Submission.user_id)
+            ).all()
+        )
+        ac_map = dict(
+            db.session.execute(
+                select(Submission.user_id, func.count(Submission.id))
+                .where(Submission.user_id.in_(student_ids), Submission.status == "AC")
+                .group_by(Submission.user_id)
+            ).all()
+        )
     for student in room.students:
-        total = db.session.scalar(
-            select(func.count(Submission.id)).where(Submission.user_id == student.id)
-        ) or 0
-        ac = db.session.scalar(
-            select(func.count(Submission.id)).where(
-                Submission.user_id == student.id, Submission.status == "AC"
-            )
-        ) or 0
+        total = total_map.get(student.id, 0)
+        ac = ac_map.get(student.id, 0)
         stats.append(
             {"student": student, "total": total, "accepted": ac, "rate": round(ac * 100 / total) if total else 0}
         )
@@ -354,11 +421,22 @@ def homeworks():
                 selectinload(Homework.problems),
             )
         ).all()
-        for hw in hws:
-            submitted = db.session.scalar(
-                select(func.count(func.distinct(Submission.user_id))).where(Submission.homework_id == hw.id)
-            ) or 0
-            items.append({"homework": hw, "submitted": submitted, "members": len(hw.classroom.students)})
+        hw_ids = [h.id for h in hws]
+        submitted_map = dict(
+            db.session.execute(
+                select(Submission.homework_id, func.count(func.distinct(Submission.user_id)))
+                .where(Submission.homework_id.in_(hw_ids))
+                .group_by(Submission.homework_id)
+            ).all()
+        )
+        items = [
+            {
+                "homework": hw,
+                "submitted": submitted_map.get(hw.id, 0),
+                "members": len(hw.classroom.students),
+            }
+            for hw in hws
+        ]
     return render_template(
         "teacher/homeworks.html",
         items=items,
@@ -375,8 +453,7 @@ def homeworks():
 @teacher_required
 def homework_detail(homework_id):
     hw = db.session.get(Homework, homework_id) or abort(404)
-    if hw.teacher_id != current_user.id:
-        abort(403)
+    ensure_owner(hw)
 
     subs = db.session.scalars(
         select(Submission).where(Submission.homework_id == hw.id).order_by(Submission.created_at.desc())
@@ -453,12 +530,8 @@ def homework_detail(homework_id):
 @teacher_required
 def homework_delete(homework_id):
     hw = db.session.get(Homework, homework_id) or abort(404)
-    if hw.teacher_id != current_user.id:
-        abort(403)
-    Submission.query.filter_by(homework_id=hw.id).delete()
-    db.session.execute(
-        homework_problems.delete().where(homework_problems.c.homework_id == hw.id)
-    )
+    ensure_owner(hw)
+    hw.purge()
     db.session.delete(hw)
     db.session.commit()
     flash("作业已删除。", "info")
@@ -499,8 +572,7 @@ def stats():
     ).all()
     room_id = request.args.get("room", type=int)
     room = db.session.get(Classroom, room_id) if room_id else (rooms[0] if rooms else None)
-    if room and room.teacher_id != current_user.id:
-        abort(403)
+    ensure_owner(room)
 
     subs = []
     if room:

@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% from "macros.html" import code_editor, result_panel %}
 {% block title %}{{ '编辑题目' if problem else '录入题目' }}{% endblock %}
 
@@ -21,6 +21,27 @@
           {% endfor %}
         </select>
 
+        <label>题型</label>
+        <select name="type" id="qtype-select">
+          {% for key, label in question_types.items() %}
+          <option value="{{ key }}" {% if problem and problem.type == key %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+
+        <label>学科</label>
+        <select name="subject">
+          {% for key, label in subjects.items() %}
+          <option value="{{ key }}" {% if problem and problem.subject == key %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+
+        <label>学段</label>
+        <select name="stage">
+          {% for key, label in stages.items() %}
+          <option value="{{ key }}" {% if problem and problem.stage == key %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+
         <label>知识点标签</label>
         <div class="check-grid">
           {% for tag in tags %}
@@ -33,20 +54,67 @@
       <div>
         <label>题目描述（支持换行）</label>
         <textarea name="description" rows="10" placeholder="说明输入格式、输出格式与示例">{{ problem.description if problem else '' }}</textarea>
-        <label>初始代码（学生打开题目时显示）</label>
-        <textarea name="starter_code" rows="6">{{ problem.starter_code if problem else '' }}</textarea>
-        <label>参考答案（仅教师可见，可选）</label>
-        <textarea name="reference_code" rows="6">{{ problem.reference_code if problem else '' }}</textarea>
+
+        <div class="code-fields" data-qtype="code">
+          <label>初始代码（学生打开题目时显示）</label>
+          <textarea name="starter_code" rows="6">{{ problem.starter_code if problem else '' }}</textarea>
+          <label>参考答案（仅教师可见，可选）</label>
+          <textarea name="reference_code" rows="6">{{ problem.reference_code if problem else '' }}</textarea>
+        </div>
+
+        <div class="choice-fields" data-qtype="choice" style="display:none">
+          <label>选项（每空一行，最多 8 项；勾选为正确答案）</label>
+          <div id="choice-opts">
+            {% set parsed_opts = problem.parsed_options if problem else [] %}
+            {% set std = problem.parsed_standard_answer if problem else None %}
+            {% set correct_labels = std['correct'] if std and std is mapping and 'correct' in std else [] %}
+            {% set is_multi = std['multi'] if std and std is mapping and 'multi' in std else false %}
+            {% for _ in range([parsed_opts|length, 4]|max) %}
+            <div class="choice-row">
+              <span class="choice-label" data-idx="{{ loop.index0 }}">{{ chr(65 + loop.index0) }}</span>
+              <input type="checkbox" name="option_correct" value="{{ chr(65 + loop.index0) }}"
+                {% if chr(65 + loop.index0) in correct_labels %}checked{% endif %}>
+              <input type="text" name="option_content" placeholder="选项 {{ chr(65 + loop.index0) }}"
+                value="{{ parsed_opts[loop.index0] if loop.index0 < parsed_opts|length else '' }}">
+            </div>
+            {% endfor %}
+          </div>
+          <div class="hint small muted">已选 {{ correct_labels|length }} 个正确答案，系统自动识别单选/多选。</div>
+        </div>
+
+        <div class="judge-fields" data-qtype="judge" style="display:none">
+          <label>正确答案</label>
+          <div>
+            <label class="check"><input type="radio" name="judge_correct" value="T"
+              {% if problem and problem.parsed_standard_answer and problem.parsed_standard_answer['correct'][0]|upper == 'T' %}checked{% endif %}> 对 ✓</label>
+            <label class="check"><input type="radio" name="judge_correct" value="F"
+              {% if problem and problem.parsed_standard_answer and problem.parsed_standard_answer['correct'][0]|upper == 'F' %}checked{% endif %}> 错 ✗</label>
+          </div>
+        </div>
+
+        <div class="fillblank-fields" data-qtype="fill" style="display:none">
+          <label>填空标准答案（每空一行，对应学生答题空）</label>
+          <div id="fillblank-rows">
+            {% set blanks = problem.parsed_standard_answer if problem and problem.parsed_standard_answer is sequence and problem.parsed_standard_answer is not mapping else [] %}
+            {% for i in range([blanks|length, 1]|max) %}
+            <div class="blank-row">
+              <span class="blank-label">空 {{ loop.index }}</span>
+              <input type="text" name="blank_answer" placeholder="标准答案"
+                value="{{ blanks[loop.index0] if loop.index0 < blanks|length else '' }}">
+            </div>
+            {% endfor %}
+          </div>
+        </div>
       </div>
     </div>
   </section>
 
-  <section class="card">
+  <section class="card code-fields" data-qtype="code">
     <div class="card-head">
       <h2>测试用例</h2>
       <button class="btn btn-outline btn-sm" type="button" id="add-case">+ 添加测试点</button>
     </div>
-    <p class="muted small">每个测试点包含“标准输入”和“期望输出”；勾选“样例”的测试点会展示给学生。</p>
+    <p class="muted small">每个测试点包含"标准输入"和"期望输出"；勾选"样例"的测试点会展示给学生。</p>
     <div id="case-list">
       {% if problem %}
         {% for tc in problem.test_cases %}
@@ -87,7 +155,7 @@
 </form>
 
 {% if problem %}
-<section class="card">
+<section class="card code-fields" data-qtype="code">
   <div class="card-head"><h2>试做验证（不会记录为提交）</h2></div>
   {{ code_editor(problem.reference_code or problem.starter_code or '') }}
   <div class="editor-actions">
@@ -97,4 +165,62 @@
   {{ result_panel() }}
 </section>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+  const sel = document.getElementById('qtype-select');
+  function showByType(){
+    const v = sel.value;
+    document.querySelectorAll('[data-qtype]').forEach(function(el){
+      if(el.getAttribute('data-qtype') === v){
+        el.style.display = '';
+      } else {
+        el.style.display = 'none';
+      }
+    });
+  }
+  sel.addEventListener('change', showByType);
+  showByType();
+
+  window.removeChoiceRow = function(){
+    var rows = document.querySelectorAll('#choice-opts .choice-row');
+    if(rows.length > 2){ rows[rows.length-1].remove(); relabelChoice(); }
+  };
+  window.addChoiceRow = function(){
+    var rows = document.querySelectorAll('#choice-opts .choice-row');
+    if(rows.length >= 8) return;
+    var idx = rows.length;
+    var div = document.createElement('div');
+    div.className = 'choice-row';
+    var chk = document.createElement('input'); chk.type='checkbox'; chk.name='option_correct'; chk.value=String.fromCharCode(65+idx);
+    var inp = document.createElement('input'); inp.type='text'; inp.name='option_content'; inp.placeholder='选项 '+String.fromCharCode(65+idx);
+    var lbl = document.createElement('span'); lbl.className='choice-label'; lbl.textContent=String.fromCharCode(65+idx);
+    var del = document.createElement('button'); del.type='button'; del.className='btn btn-sm btn-outline'; del.textContent='删'; del.onclick = window.removeChoiceRow;
+    div.appendChild(lbl); div.appendChild(chk); div.appendChild(inp); div.appendChild(del);
+    document.getElementById('choice-opts').appendChild(div);
+    relabelChoice();
+  };
+  function relabelChoice(){
+    document.querySelectorAll('#choice-opts .choice-row').forEach(function(r,i){
+      r.querySelector('.choice-label').textContent = String.fromCharCode(65+i);
+      r.querySelector('.choice-label').setAttribute('data-idx', i);
+      r.querySelector('input[type=checkbox]').value = String.fromCharCode(65+i);
+      r.querySelector('input[type=text]').placeholder = '选项 '+String.fromCharCode(65+i);
+    });
+  }
+
+  window.addBlankRow = function(){
+    var div = document.createElement('div');
+    div.className='blank-row';
+    var lbl = document.createElement('span'); lbl.className='blank-label';
+    var inp = document.createElement('input'); inp.type='text'; inp.name='blank_answer'; inp.placeholder='标准答案';
+    div.appendChild(lbl); div.appendChild(inp);
+    document.getElementById('fillblank-rows').appendChild(div);
+    var rows = document.querySelectorAll('#fillblank-rows .blank-row');
+    rows.forEach(function(r,i){ r.querySelector('.blank-label').textContent='空 '+(i+1); });
+  };
+})();
+</script>
 {% endblock %}

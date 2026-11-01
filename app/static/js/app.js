@@ -1,4 +1,4 @@
-/* 在线编辑器与判题交互 */
+﻿/* 在线编辑器与判题交互 */
 (function () {
   var editor = null;
 
@@ -70,10 +70,46 @@
     var msgEl = document.getElementById('result-message');
     var spinner = document.getElementById('result-spinner');
 
-    var code = currentCode();
-    if (!code.trim()) {
-      alert('请先编写代码再提交。');
-      return;
+    var probType = btn.dataset.type || 'code';
+    var payload = {
+      problem_id: parseInt(btn.dataset.problem, 10),
+      homework_id: btn.dataset.homework ? parseInt(btn.dataset.homework, 10) : null,
+      source: btn.dataset.source || 'free',
+      save: btn.dataset.save !== '0'
+    };
+
+    if (probType === 'code') {
+      var code = currentCode();
+      if (!code.trim()) {
+        alert('请先编写代码再提交。');
+        return;
+      }
+      payload.code = code;
+    } else if (probType === 'choice') {
+      var picks = [];
+      document.querySelectorAll('input[name="opt_pick"]:checked').forEach(function(cb){ picks.push(cb.value); });
+      if (picks.length === 0) {
+        alert('请先选择答案。');
+        return;
+      }
+      payload.choices = picks;
+      payload.code = '';
+    } else if (probType === 'judge') {
+      var j = document.querySelector('input[name="judge_pick"]:checked');
+      if (!j) { alert('请先选择对/错。'); return; }
+      payload.judge = j.value;
+      payload.code = '';
+    } else if (probType === 'fill') {
+      var ans = [];
+      document.querySelectorAll('input[name="blank_input"]').forEach(function(inp){ ans.push(inp.value); });
+      if (ans.every(function(a){ return !a.trim(); })) {
+        alert('请先填写答案。');
+        return;
+      }
+      payload.answers = ans;
+      payload.code = '';
+    } else {
+      payload.code = currentCode();
     }
 
     if (panel) panel.classList.remove('hidden');
@@ -86,13 +122,7 @@
     fetch('/api/judge', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken() },
-      body: JSON.stringify({
-        code: code,
-        problem_id: parseInt(btn.dataset.problem, 10),
-        homework_id: btn.dataset.homework ? parseInt(btn.dataset.homework, 10) : null,
-        source: btn.dataset.source || 'free',
-        save: btn.dataset.save !== '0'
-      })
+      body: JSON.stringify(payload)
     }).then(function (r) { return r.json(); })
       .then(function (data) {
         btn.disabled = false;
@@ -106,7 +136,8 @@
         var label = { AC: '通过', WA: '答案错误', RE: '运行时错误', CE: '语法错误', TLE: '运行超时' }[data.status] || data.status;
         if (statusEl) { statusEl.textContent = label; statusEl.className = 'badge badge-' + cls; }
         if (summaryEl) {
-          summaryEl.textContent = '通过测试点 ' + data.passed + '/' + data.total + '，耗时 ' + data.max_time_ms + ' ms';
+          summaryEl.textContent = '通过 ' + data.passed + '/' + data.total;
+          if (data.score !== undefined) summaryEl.textContent += '，得分 ' + data.score;
         }
         if (msgEl) msgEl.textContent = data.message || '';
         renderCases(data.cases);

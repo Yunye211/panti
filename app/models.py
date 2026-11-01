@@ -1,8 +1,11 @@
+import json
 from datetime import datetime
 
 from flask_login import UserMixin
+from sqlalchemy import select
 from werkzeug.security import generate_password_hash, check_password_hash
 
+from .constants import grade_label, question_type_label, stage_label, subject_label
 from .extensions import db
 
 # ----------------------------- 关联表 -----------------------------
@@ -80,6 +83,22 @@ class User(UserMixin, db.Model):
     def name(self):
         return self.display_name or self.username
 
+    def purge(self):
+        Submission.query.filter_by(user_id=self.id).delete()
+        db.session.execute(
+            classroom_students.delete().where(classroom_students.c.student_id == self.id)
+        )
+        db.session.execute(
+            ClassroomStudent.__table__.delete().where(ClassroomStudent.student_id == self.id)
+        )
+        rooms = db.session.scalars(
+            select(Classroom).where(Classroom.teacher_id == self.id)
+        ).all()
+        for room in rooms:
+            room.purge()
+            db.session.delete(room)
+        db.session.flush()
+
 
 class KnowledgePoint(db.Model):
     __tablename__ = "knowledge_points"
@@ -87,6 +106,16 @@ class KnowledgePoint(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(64), unique=True, nullable=False)
     description = db.Column(db.String(255), default="")
+    subject = db.Column(db.String(32), default="信息技术")
+    grade = db.Column(db.String(32), default="")
+
+    @property
+    def subject_label(self):
+        return subject_label(self.subject)
+
+    @property
+    def grade_label(self):
+        return grade_label(self.grade)
 
 
 class Problem(db.Model):
@@ -101,6 +130,12 @@ class Problem(db.Model):
     author_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     created_at = db.Column(db.DateTime, default=datetime.now)
 
+    type = db.Column(db.String(16), nullable=False, default="code")
+    subject = db.Column(db.String(32), nullable=False, default="信息技术")
+    stage = db.Column(db.String(16), nullable=False, default="初中")
+    options = db.Column(db.Text, default=None)
+    standard_answer = db.Column(db.Text, default=None)
+
     tags = db.relationship("KnowledgePoint", secondary=problem_tags, backref="problems")
     test_cases = db.relationship(
         "TestCase", back_populates="problem", cascade="all, delete-orphan", order_by="TestCase.id"
@@ -113,6 +148,43 @@ class Problem(db.Model):
     @property
     def tag_names(self):
         return [t.name for t in self.tags]
+
+    @property
+    def type_label(self):
+        return question_type_label(self.type)
+
+    @property
+    def subject_label(self):
+        return subject_label(self.subject)
+
+    @property
+    def stage_label(self):
+        return stage_label(self.stage)
+
+    @property
+    def parsed_options(self):
+        if not self.options:
+            return []
+        try:
+            data = json.loads(self.options)
+            return data if isinstance(data, list) else []
+        except (ValueError, TypeError):
+            return []
+
+    @property
+    def parsed_standard_answer(self):
+        if not self.standard_answer:
+            return None
+        try:
+            return json.loads(self.standard_answer)
+        except (ValueError, TypeError):
+            return None
+
+    def purge(self):
+        Submission.query.filter_by(problem_id=self.id).delete()
+        db.session.execute(
+            homework_problems.delete().where(homework_problems.c.problem_id == self.id)
+        )
 
 
 class TestCase(db.Model):
@@ -140,6 +212,17 @@ class Classroom(db.Model):
     students = db.relationship(
         "User", secondary=classroom_students, back_populates="joined_classrooms"
     )
+
+    def purge(self):
+        db.session.execute(
+            ClassroomStudent.__table__.delete().where(ClassroomStudent.classroom_id == self.id)
+        )
+        db.session.execute(
+            classroom_students.delete().where(classroom_students.c.classroom_id == self.id)
+        )
+        for hw in list(self.homeworks):
+            hw.purge()
+            db.session.delete(hw)
 
 
 class ClassroomStudent(db.Model):
@@ -170,6 +253,12 @@ class Homework(db.Model):
     def is_closed(self):
         return datetime.now() > self.due_at
 
+    def purge(self):
+        Submission.query.filter_by(homework_id=self.id).delete()
+        db.session.execute(
+            homework_problems.delete().where(homework_problems.c.homework_id == self.id)
+        )
+
 
 class Submission(db.Model):
     __tablename__ = "submissions"
@@ -183,6 +272,7 @@ class Submission(db.Model):
     passed_count = db.Column(db.Integer, default=0)
     total_count = db.Column(db.Integer, default=0)
     message = db.Column(db.Text, default="")
+    score_detail = db.Column(db.Text, default=None)
     max_time_ms = db.Column(db.Integer, default=0)
     source = db.Column(db.String(16), default="practice")  # practice / free / homework
     is_late = db.Column(db.Boolean, default=False)

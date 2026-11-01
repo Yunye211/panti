@@ -6,7 +6,7 @@
 <section class="hero">
   <div>
     <h1>你好，{{ current_user.name }} 👋</h1>
-    <p class="muted">选择知识点与难度开始专项练习，在线写代码并提交，系统会自动判题。</p>
+    <p class="muted">选择学科、知识点与难度开始专项练习，在线作答并提交，系统会自动评分。</p>
     <div class="hero-actions">
       <a class="btn btn-primary" href="{{ url_for('problems.practice_setup') }}">开始专项练习</a>
       <a class="btn btn-outline" href="{{ url_for('problems.index') }}">浏览题库</a>
@@ -16,7 +16,7 @@
     <div class="stat-card"><div class="stat-num">{{ solved_problems }}</div><div class="stat-label">已通过题目</div></div>
     <div class="stat-card"><div class="stat-num">{{ total }}</div><div class="stat-label">提交次数</div></div>
     <div class="stat-card"><div class="stat-num">{{ accepted }}</div><div class="stat-label">通过提交</div></div>
-    <div class="stat-card"><div class="stat-num">{{ problem_count }}</div><div class="stat-label">题库总量</div></div>
+    <div class="stat-card"><div class="stat-num">{{ problem_count }}</div><div class="stat-label">题目总量</div></div>
   </div>
 </section>
 

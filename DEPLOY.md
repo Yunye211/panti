@@ -1,6 +1,6 @@
 # 部署文档（DEPLOY.md）
 
-Python 在线编程与自动判题平台（COBEBUDDY）的完整部署指南。
+《基于Python的中小学课程在线测评系统设计与实现》（工程代号 COBEBUDDY）的完整部署指南。
 
 - 技术栈：Flask + SQLAlchemy + Gunicorn + Docker（判题沙箱）+ PostgreSQL 数据库容器
 - 仓库：https://github.com/Yunye211/panti

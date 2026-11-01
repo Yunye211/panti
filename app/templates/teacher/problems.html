@@ -11,6 +11,24 @@
 
   <form class="filter-bar" method="get">
     <input type="text" name="q" value="{{ keyword }}" placeholder="搜索标题">
+    <select name="type">
+      <option value="">全部题型</option>
+      {% for key, label in question_types.items() %}
+      <option value="{{ key }}" {% if type == key %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <select name="subject">
+      <option value="">全部学科</option>
+      {% for key, label in subjects.items() %}
+      <option value="{{ key }}" {% if subject == key %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <select name="stage">
+      <option value="">全部学段</option>
+      {% for key, label in stages.items() %}
+      <option value="{{ key }}" {% if stage == key %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
     <select name="tag">
       <option value="">全部知识点</option>
       {% for tag in tags %}
@@ -28,12 +46,17 @@
   </form>
 
   <table class="table">
-    <thead><tr><th>#</th><th>题目</th><th>知识点</th><th>难度</th><th>测试点</th><th>操作</th></tr></thead>
+    <thead><tr><th>#</th><th>题目</th><th>题型/学科/学段</th><th>知识点</th><th>难度</th><th>测试点</th><th>操作</th></tr></thead>
     <tbody>
     {% for p in problems %}
     <tr>
       <td class="muted">{{ p.id }}</td>
       <td><a href="{{ url_for('teacher.problem_edit', problem_id=p.id) }}">{{ p.title }}</a></td>
+      <td>
+        <span class="chip">{{ p.type_label }}</span>
+        <span class="chip">{{ p.subject_label }}</span>
+        <span class="chip">{{ p.stage_label }}</span>
+      </td>
       <td>{{ tag_list(p) }}</td>
       <td>{{ difficulty_badge(p) }}</td>
       <td class="muted">{{ p.test_cases|length }} 个</td>
@@ -47,7 +70,7 @@
       </td>
     </tr>
     {% else %}
-    <tr><td colspan="6" class="muted">还没有题目，点击右上角录入。</td></tr>
+    <tr><td colspan="7" class="muted">还没有题目，点击右上角录入。</td></tr>
     {% endfor %}
     </tbody>
   </table>

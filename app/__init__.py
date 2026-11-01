@@ -55,6 +55,9 @@ def create_app(config=None):
     login_manager.login_view = "auth.login"
     login_manager.login_message = "请先登录后再访问该页面。"
 
+    app.jinja_env.globals["chr"] = chr
+    app.jinja_env.globals["ord"] = ord
+
     @login_manager.user_loader
     def load_user(user_id):
         return db.session.get(User, int(user_id))
@@ -161,12 +164,46 @@ def _ensure_schema():
     inspector = inspect(db.engine)
     if not inspector.has_table("users"):
         return
-    columns = {c["name"] for c in inspector.get_columns("users")}
-    if "is_active" in columns:
-        return
-    default = "TRUE" if db.engine.dialect.name == "postgresql" else "1"
-    try:
-        db.session.execute(text("ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT %s" % default))
-        db.session.commit()
-    except Exception:  # 多 worker 并发启动时可能已被另一个进程加过
-        db.session.rollback()
+
+    def _add_col(table, col_sql):
+        cols = {c["name"] for c in inspector.get_columns(table)}
+        col_name = col_sql.split()[0]
+        if col_name in cols:
+            return
+        try:
+            db.session.execute(text(f"ALTER TABLE {table} ADD COLUMN {col_sql}"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+    _add_col("users", "is_active BOOLEAN DEFAULT %s" % ("TRUE" if db.engine.dialect.name == "postgresql" else "1"))
+
+    if inspector.has_table("problems"):
+        _add_col("problems", "type VARCHAR(16) DEFAULT 'code'")
+        _add_col("problems", "subject VARCHAR(32) DEFAULT '信息技术'")
+        _add_col("problems", "stage VARCHAR(16) DEFAULT '初中'")
+        _add_col("problems", "options TEXT")
+        _add_col("problems", "standard_answer TEXT")
+
+        try:
+            db.session.execute(text("UPDATE problems SET type='code' WHERE type IS NULL OR type=''"))
+            db.session.execute(text("UPDATE problems SET subject='信息技术' WHERE subject IS NULL OR subject=''"))
+            db.session.execute(text("UPDATE problems SET stage='初中' WHERE stage IS NULL OR stage=''"))
+            db.session.execute(text("UPDATE problems SET type='fill' WHERE type='fillblank'"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+    if inspector.has_table("submissions"):
+        _add_col("submissions", "score_detail TEXT")
+
+    if inspector.has_table("knowledge_points"):
+        _add_col("knowledge_points", "subject VARCHAR(32) DEFAULT '信息技术'")
+        _add_col("knowledge_points", "grade VARCHAR(32) DEFAULT ''")
+
+        try:
+            db.session.execute(text("UPDATE knowledge_points SET subject='信息技术' WHERE subject IS NULL OR subject=''"))
+            db.session.execute(text("UPDATE knowledge_points SET grade='' WHERE grade IS NULL"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()

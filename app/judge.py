@@ -1,4 +1,6 @@
 """自动判题：把学生代码与题目的测试用例逐一比对。"""
+import json
+
 from .models import STATUS_LABELS
 from .sandbox import check_syntax, run_code
 
@@ -109,4 +111,134 @@ def judge(code, test_cases, time_limit=2, total_limit=15, memory_mb=256):
         "max_time_ms": max_time,
         "message": message,
         "cases": cases,
+    }
+
+
+def grade_objective(problem, user_answer):
+    """客观题判题（choice / judge / fill）。
+
+    参数:
+        problem: Problem 实例，需提供 type 与 standard_answer 属性
+        user_answer: dict，按题型不同：
+            choice -> {"choices": ["A"]} 或 {"choices": ["A", "C"]}
+            judge  -> {"judge": "true"/"false"/"对"/"错"/"T"/"F"}
+            fill   -> {"answers": ["3.14", "python"]}
+
+    返回与 judge() 对齐的结构：
+        {"status": "AC"|"WA", "passed": n, "total": m,
+         "passed_count": n, "total_count": m,
+         "score": 0|100, "message": str, "detail": dict}
+    """
+    qtype = problem.type or "code"
+    std_raw = problem.standard_answer
+
+    if not std_raw:
+        return _obj_fail("标准答案格式异常")
+
+    try:
+        std = json.loads(std_raw)
+    except (ValueError, TypeError):
+        return _obj_fail("标准答案格式异常")
+
+    try:
+        if qtype == "choice":
+            return _obj_choice(std, user_answer)
+        if qtype == "judge":
+            return _obj_judge(std, user_answer)
+        if qtype == "fill":
+            return _obj_fill(std, user_answer)
+    except Exception as exc:
+        return _obj_fail("判题异常：%s" % exc)
+
+    return _obj_fail("未知题型：%s" % qtype)
+
+
+def _obj_fail(message):
+    return {
+        "status": "WA",
+        "score": 0,
+        "passed_count": 0,
+        "total_count": 1,
+        "passed": 0,
+        "total": 1,
+        "message": message,
+        "detail": {},
+    }
+
+
+def _obj_choice(std, user_answer):
+    if not isinstance(std, dict) or "correct" not in std:
+        return _obj_fail("标准答案格式异常")
+
+    is_multi = bool(std.get("multi", False))
+    correct = set(str(c).strip().upper() for c in std.get("correct", []))
+    picked = set(str(c).strip().upper() for c in (user_answer or {}).get("choices", []))
+
+    if not correct:
+        return _obj_fail("标准答案格式异常")
+
+    matched = picked == correct
+    return _obj_build(matched, 1, 100, "选择题" + ("（多选）" if is_multi else ""))
+
+
+def _obj_judge(std, user_answer):
+    if not isinstance(std, dict) or "correct" not in std:
+        return _obj_fail("标准答案格式异常")
+
+    correct_raw = str(std["correct"][0]).strip().lower() if std["correct"] else ""
+    correct_norm = correct_raw in ("true", "t", "对", "1", "yes")
+
+    user_raw = str((user_answer or {}).get("judge", "")).strip().lower()
+    user_norm = user_raw in ("true", "t", "对", "1", "yes")
+
+    matched = correct_norm == user_norm and user_raw != ""
+    return _obj_build(matched, 1, 100, "判断题")
+
+
+def _obj_fill(std, user_answer):
+    if not isinstance(std, list) or len(std) == 0:
+        return _obj_fail("标准答案格式异常")
+
+    normalized = []
+    for item in std:
+        if isinstance(item, list):
+            normalized.append({normalize(str(a)) for a in item})
+        else:
+            normalized.append({normalize(str(item))})
+
+    answers = (user_answer or {}).get("answers", [])
+    if not isinstance(answers, list):
+        return _obj_fail("标准答案格式异常")
+
+    total = len(normalized)
+    passed = 0
+    for i, accept_set in enumerate(normalized):
+        got_norm = normalize(str(answers[i])) if i < len(answers) else ""
+        if got_norm and got_norm in accept_set:
+            passed += 1
+
+    full = passed == total
+    score = round(passed * 100 / total) if total else 0
+    return {
+        "status": "AC" if full else "WA",
+        "score": score,
+        "passed_count": passed,
+        "total_count": total,
+        "passed": passed,
+        "total": total,
+        "message": "填空题 %d/%d 空正确" % (passed, total),
+        "detail": {"passed": passed, "total": total},
+    }
+
+
+def _obj_build(matched, total, score_full, label):
+    return {
+        "status": "AC" if matched else "WA",
+        "score": score_full if matched else 0,
+        "passed_count": total if matched else 0,
+        "total_count": total,
+        "passed": total if matched else 0,
+        "total": total,
+        "message": "%s判题结果：%s" % (label, "正确" if matched else "错误"),
+        "detail": {},
     }

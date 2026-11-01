@@ -8,3 +8,7 @@ venv/
 # 测试结果表：只保留主文件，Excel 打开时产生的临时副本不入库
 ~$*.xlsx
 测试结果-*.xlsx
+
+# 测试报告生成过程的中间产物
+reports/collected.txt
+reports/junit.xml

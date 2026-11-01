@@ -1,6 +1,11 @@
-"""按《COBEBUDDY-测试用例表》逐条复现测试，并生成同模板格式的测试结果 Excel。
+"""按《测试用例表》逐条复现测试，并生成同模板格式的测试结果 Excel。
 
-运行：python tests/case_test.py [--xlsx 输出路径]
+模板按以下顺序查找，找不到就退回仓库内置模板（tests/case_template.xlsx）：
+  1. 桌面《基于Python的中小学课程在线测评系统设计与实现-测试用例表.xlsx》
+  2. 桌面 COBEBUDDY-测试用例表.xlsx（旧名）
+  3. 仓库内置 tests/case_template.xlsx
+
+运行：python tests/run_cases.py
 """
 import os
 import re
@@ -23,7 +28,14 @@ from app.models import (  # noqa: E402
     homework_problems,
 )
 
-TEMPLATE = r"C:\Users\hky\Desktop\COBEBUDDY-测试用例表.xlsx"
+DESKTOP = os.path.join(os.path.expanduser("~"), "Desktop")
+BUILTIN_TEMPLATE = os.path.join(os.path.dirname(__file__), "case_template.xlsx")
+TEMPLATE_CANDIDATES = [
+    os.path.join(DESKTOP, "基于Python的中小学课程在线测评系统设计与实现-测试用例表.xlsx"),
+    os.path.join(DESKTOP, "COBEBUDDY-测试用例表.xlsx"),
+    BUILTIN_TEMPLATE,
+]
+TEMPLATE = BUILTIN_TEMPLATE  # 实际使用的模板，load_template_rows() 中确定
 OUTPUT = os.path.join(os.path.dirname(__file__), os.pardir, "测试结果.xlsx")
 
 RESULTS = {}  # 用例编号 -> (实际结果, 状态, 缺陷编号)
@@ -631,7 +643,14 @@ def load_template_rows():
     B 列（测试模块）在模板中是纵向合并单元格，非首格读出来为空，
     这里做向下填充，保证每个用例都带上所属模块名。
     """
+    global TEMPLATE
     from openpyxl import load_workbook
+
+    # 依次尝试候选模板，优先使用桌面上最新的用例表
+    for path in TEMPLATE_CANDIDATES:
+        if path and os.path.exists(path):
+            TEMPLATE = path
+            break
 
     rows = []
     wb = load_workbook(TEMPLATE)

@@ -274,34 +274,7 @@ def _valid_username(name):
 
 def _purge_user(user):
     """删除用户前清理其关联数据，避免出现孤儿记录。"""
-    Submission.query.filter_by(user_id=user.id).delete()
-
-    # 退出所有班级
-    db.session.execute(
-        classroom_students.delete().where(classroom_students.c.student_id == user.id)
-    )
-    db.session.execute(
-        ClassroomStudent.__table__.delete().where(ClassroomStudent.student_id == user.id)
-    )
-
-    # 教师：连带删除其班级、作业与作业提交
-    rooms = db.session.scalars(select(Classroom).where(Classroom.teacher_id == user.id)).all()
-    for room in rooms:
-        for hw in list(room.homeworks):
-            Submission.query.filter_by(homework_id=hw.id).delete()
-            db.session.execute(
-                homework_problems.delete().where(homework_problems.c.homework_id == hw.id)
-            )
-            db.session.delete(hw)
-        db.session.execute(
-            ClassroomStudent.__table__.delete().where(ClassroomStudent.classroom_id == room.id)
-        )
-        db.session.execute(
-            classroom_students.delete().where(classroom_students.c.classroom_id == room.id)
-        )
-        db.session.delete(room)
-
-    db.session.flush()
+    user.purge()
 
 
 @admin_bp.app_context_processor

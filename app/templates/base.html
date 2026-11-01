@@ -4,14 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="{{ csrf_token() }}">
-  <title>{% block title %}Python 在线判题平台{% endblock %}</title>
+  <title>{% block title %}基于Python的中小学课程在线测评系统{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='vendor/codemirror/codemirror.min.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
 <nav class="navbar">
   <div class="nav-inner">
-    <a class="brand" href="{{ url_for('main.index') }}"><span class="logo">Py</span> 在线编程判题平台</a>
+    <a class="brand" href="{{ url_for('main.index') }}"><span class="logo">Py</span> 中小学课程在线测评系统</a>
     <div class="nav-links">
       <a href="{{ url_for('main.index') }}">首页</a>
       {% if current_user.is_authenticated and current_user.is_student %}
@@ -58,7 +58,7 @@
 </main>
 
 <footer class="footer">
-  <div>Python 在线编程与自动判题平台 · 学生代码在服务器沙箱中运行</div>
+  <div>基于Python的中小学课程在线测评系统 · 支持代码自动判题与客观题在线作答</div>
 </footer>
 
 <script src="{{ url_for('static', filename='vendor/codemirror/codemirror.min.js') }}"></script>

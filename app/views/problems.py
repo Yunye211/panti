@@ -16,7 +16,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from .. import db
-from ..decorators import student_required
+from ..decorators import like, student_required
 from ..models import DIFFICULTIES, KnowledgePoint, Problem, Submission, User
 
 problems_bp = Blueprint("problems", __name__, url_prefix="/problems", template_folder="../templates")
@@ -35,8 +35,8 @@ def index():
 
     stmt = select(Problem)
     if keyword:
-        like = "%%%s%%" % keyword
-        stmt = stmt.where(Problem.title.like(like))
+        pat, esc = like(keyword)
+        stmt = stmt.where(Problem.title.like(pat, escape=esc))
     if difficulty in DIFFICULTIES:
         stmt = stmt.where(Problem.difficulty == difficulty)
     if tag_id:
