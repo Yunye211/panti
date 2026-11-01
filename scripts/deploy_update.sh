@@ -9,7 +9,8 @@ URL="${URL:-http://127.0.0.1:5000}"
 cd "$APP_DIR"
 
 echo "==> 1/5 拉取最新代码"
-git pull --ff-only
+# 服务器访问 GitHub 可能不通（网络/防火墙），此时沿用已上传的代码继续部署
+git pull --ff-only || echo "    拉取失败（GitHub 不可达），继续使用当前目录代码"
 
 echo "==> 2/5 重建并启动容器"
 $COMPOSE up -d --build
